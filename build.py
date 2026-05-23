@@ -163,8 +163,8 @@ header {
 .month-label .num { font-family: var(--font-en); }
 
 .icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -173,6 +173,7 @@ header {
   transition: background 0.18s var(--ease-out), transform 0.15s var(--ease-spring);
 }
 .icon-btn:active { background: var(--surface-2); transform: scale(0.88); }
+.icon-btn:focus-visible { outline: 2px solid var(--leaf); outline-offset: 2px; }
 .icon-btn svg { width: 22px; height: 22px; }
 .today-btn {
   background: linear-gradient(135deg, var(--leaf) 0%, var(--leaf-dark) 100%);
@@ -197,7 +198,8 @@ header {
 }
 .filters::-webkit-scrollbar { display: none; }
 .chip {
-  padding: 8px 14px;
+  padding: 10px 16px;
+  min-height: 40px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 700;
@@ -210,9 +212,11 @@ header {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  cursor: pointer;
   transition: all 0.22s var(--ease-out);
 }
 .chip:active { transform: scale(0.94); }
+.chip:focus-visible { outline: 2px solid var(--leaf); outline-offset: 2px; }
 .chip .dot {
   width: 8px;
   height: 8px;
@@ -872,11 +876,11 @@ header {
       <svg><use href="#i-right"/></svg>
     </button>
   </div>
-  <div class="filters">
-    <div class="chip active" data-key="kouki"><span class="dot"></span>こうき</div>
-    <div class="chip active" data-key="yui"><span class="dot"></span>ゆい</div>
-    <div class="chip active" data-key="pay"><span class="dot"></span>給料日</div>
-    <div class="chip active" data-key="custom"><span class="dot"></span>予定</div>
+  <div class="filters" role="group" aria-label="表示フィルター">
+    <div class="chip active" data-key="kouki" role="switch" aria-checked="true" tabindex="0"><span class="dot"></span>こうき</div>
+    <div class="chip active" data-key="yui" role="switch" aria-checked="true" tabindex="0"><span class="dot"></span>ゆい</div>
+    <div class="chip active" data-key="pay" role="switch" aria-checked="true" tabindex="0"><span class="dot"></span>給料日</div>
+    <div class="chip active" data-key="custom" role="switch" aria-checked="true" tabindex="0"><span class="dot"></span>予定</div>
   </div>
 </header>
 
@@ -899,7 +903,7 @@ header {
 </button>
 
 <!-- Day Detail Sheet -->
-<div class="sheet-overlay" id="day-overlay">
+<div class="sheet-overlay" id="day-overlay" role="dialog" aria-modal="true" aria-labelledby="day-title" aria-hidden="true">
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
@@ -922,7 +926,7 @@ header {
 </div>
 
 <!-- Form Sheet -->
-<div class="sheet-overlay" id="form-overlay">
+<div class="sheet-overlay" id="form-overlay" role="dialog" aria-modal="true" aria-labelledby="form-title" aria-hidden="true">
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
@@ -990,7 +994,7 @@ header {
 </div>
 
 <!-- Settings Sheet -->
-<div class="sheet-overlay" id="settings-overlay">
+<div class="sheet-overlay" id="settings-overlay" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
@@ -1246,7 +1250,16 @@ function render() {
       cell.appendChild(more);
     }
 
+    cell.setAttribute('role', 'button');
+    cell.setAttribute('tabindex', '0');
+    cell.setAttribute('aria-label', `${y}年${m+1}月${d}日`);
     cell.onclick = () => openDaySheet(key, y, m, d);
+    cell.onkeydown = (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        openDaySheet(key, y, m, d);
+      }
+    };
     grid.appendChild(cell);
   }
 }
@@ -1259,6 +1272,7 @@ function openDaySheet(key, y, m, d) {
   openDayKey = key;
   refreshDaySheet();
   document.getElementById('day-overlay').classList.add('open');
+  document.getElementById('day-overlay').setAttribute('aria-hidden', 'false');
 }
 function refreshDaySheet() {
   if (!openDayKey) return;
@@ -1314,6 +1328,7 @@ function refreshDaySheet() {
 }
 function closeDaySheet() {
   document.getElementById('day-overlay').classList.remove('open');
+  document.getElementById('day-overlay').setAttribute('aria-hidden', 'true');
   openDayKey = null;
 }
 
@@ -1346,10 +1361,12 @@ function openForm(id, dateKeyHint) {
   if (start) document.getElementById('f-start').value = start;
   if (end) document.getElementById('f-end').value = end;
   document.getElementById('form-overlay').classList.add('open');
+  document.getElementById('form-overlay').setAttribute('aria-hidden', 'false');
   setTimeout(() => document.getElementById('f-title').focus(), 300);
 }
 function closeForm() {
   document.getElementById('form-overlay').classList.remove('open');
+  document.getElementById('form-overlay').setAttribute('aria-hidden', 'true');
   editingId = null;
 }
 async function saveForm() {
@@ -1423,8 +1440,12 @@ function openSettings() {
   document.getElementById('fb-config').value = cfg;
   updateNotifStatus();
   document.getElementById('settings-overlay').classList.add('open');
+  document.getElementById('settings-overlay').setAttribute('aria-hidden', 'false');
 }
-function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+  document.getElementById('settings-overlay').setAttribute('aria-hidden', 'true');
+}
 function updateNotifStatus() {
   const status = document.getElementById('notif-status');
   if (!('Notification' in window)) {
@@ -1496,10 +1517,18 @@ async function init() {
     m.classList.add('hop');
   };
   document.querySelectorAll('.chip').forEach(c => {
-    c.onclick = () => {
+    const toggle = () => {
       filters[c.dataset.key] = !filters[c.dataset.key];
       c.classList.toggle('active');
+      c.setAttribute('aria-checked', filters[c.dataset.key] ? 'true' : 'false');
       render();
+    };
+    c.onclick = toggle;
+    c.onkeydown = (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        toggle();
+      }
     };
   });
   document.getElementById('fab').onclick = () => openForm(null);
