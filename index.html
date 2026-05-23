@@ -12,29 +12,43 @@
 <link rel="apple-touch-icon" href="icon.png">
 <style>
 :root {
-  --bg: #ffffff;
+  --bg: #fefefe;
   --surface: #ffffff;
-  --surface-soft: #fafaf9;
-  --surface-2: #f5f5f4;
-  --text: #0c0a09;
-  --text-2: #44403c;
-  --muted: #78716c;
-  --border: #e7e5e4;
-  --border-strong: #d6d3d1;
-  --kouki: #4f46e5;
+  --surface-soft: #f7fdf6;
+  --surface-2: #f0fdf4;
+  --text: #1a2e05;
+  --text-2: #365314;
+  --muted: #84847e;
+  --border: #e7f5d6;
+  --border-strong: #c8e6a0;
+  /* こうき: meeting / outing で色違い */
+  --kouki: #4f46e5;          /* 休系 メイン藍 */
+  --kouki-meeting: #1e3a8a;  /* 会議: ネイビー(濃) */
+  --kouki-outing: #38bdf8;   /* 出店: スカイブルー(明) */
   --kouki-soft: #eef2ff;
-  --yui: #be185d;
+  --yui: #be185d;            /* 休系 ローズ */
+  --yui-meeting: #9d174d;    /* 会議: 濃ローズ */
+  --yui-outing: #f472b6;     /* 出店: ライトピンク */
   --yui-soft: #fce7f3;
-  --pay: #047857;
-  --pay-soft: #d1fae5;
+  /* ケロッピーグリーン(給料日) */
+  --pay: #65a30d;
+  --pay-soft: #ecfccb;
+  --pay-dark: #4d7c0f;
+  /* カスタム予定 */
   --custom: #c2410c;
   --custom-soft: #ffedd5;
-  --today: #0c0a09;
+  /* 強調・かわいい */
+  --keroppi: #65a30d;
+  --keroppi-light: #84cc16;
+  --pink-soft: #fce7f3;
+  --mint-soft: #d1fae5;
+  --heart: #f472b6;
+  --today: #65a30d;
   --sun: #dc2626;
   --sat: #2563eb;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.18);
+  --shadow-sm: 0 1px 2px rgba(101, 163, 13, 0.06);
+  --shadow-md: 0 4px 12px rgba(101, 163, 13, 0.1);
+  --shadow-lg: 0 16px 48px rgba(101, 163, 13, 0.2);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -91,6 +105,14 @@ header {
   color: var(--text);
   letter-spacing: -0.02em;
   line-height: 1.05;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.month-label .froggy {
+  font-size: 20px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(101, 163, 13, 0.3));
 }
 .icon-btn {
   width: 44px;
@@ -105,13 +127,14 @@ header {
 .icon-btn:active { background: var(--surface-2); transform: scale(0.92); }
 .icon-btn svg { width: 22px; height: 22px; }
 .today-btn {
-  background: var(--text);
+  background: linear-gradient(135deg, var(--keroppi) 0%, var(--keroppi-light) 100%);
   color: white;
-  font-weight: 700;
+  font-weight: 800;
   padding: 8px 14px;
   border-radius: 999px;
   font-size: 13px;
   letter-spacing: 0.02em;
+  box-shadow: 0 2px 6px rgba(101, 163, 13, 0.3);
 }
 .today-btn:active { transform: scale(0.94); }
 
@@ -201,8 +224,9 @@ header {
 }
 .cell.other-month .date-num { color: var(--muted); opacity: 0.55; }
 .cell.today {
-  border-color: var(--text);
+  border-color: var(--keroppi);
   border-width: 1.5px;
+  box-shadow: 0 0 0 2px var(--mint-soft);
 }
 .date-num {
   font-size: 14px;
@@ -214,7 +238,7 @@ header {
   color: var(--text-2);
 }
 .cell.today .date-num {
-  background: var(--today);
+  background: linear-gradient(135deg, var(--keroppi) 0%, var(--keroppi-light) 100%);
   color: white;
   border-radius: 50%;
   width: 22px;
@@ -222,6 +246,26 @@ header {
   justify-content: center;
   padding: 0;
   font-weight: 800;
+  box-shadow: 0 1px 3px rgba(101, 163, 13, 0.4);
+}
+/* 二人とも休みの日 */
+.cell.both-off {
+  background: linear-gradient(135deg, #fff1f9 0%, #fef3c7 50%, #ecfccb 100%);
+  border-color: var(--heart);
+}
+.cell.both-off::after {
+  content: '💖';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 13px;
+  filter: drop-shadow(0 1px 2px rgba(244, 114, 182, 0.4));
+  pointer-events: none;
+  animation: heartPulse 2s ease-in-out infinite;
+}
+@keyframes heartPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
 }
 .date-num.sun { color: var(--sun); }
 .date-num.sat { color: var(--sat); }
@@ -267,8 +311,14 @@ header {
 .event.pay { padding: 3px 3px; }
 .event.pay .event-label { font-size: 10px; letter-spacing: -0.05em; }
 .event.kouki { background: var(--kouki); }
+.event.kouki.t-meeting { background: var(--kouki-meeting); }
+.event.kouki.t-outing { background: var(--kouki-outing); color: #0c4a6e; }
+.event.kouki.t-outing .event-name { opacity: 0.7; }
 .event.yui { background: var(--yui); }
-.event.pay { background: var(--pay); }
+.event.yui.t-meeting { background: var(--yui-meeting); }
+.event.yui.t-outing { background: var(--yui-outing); color: #831843; }
+.event.yui.t-outing .event-name { opacity: 0.7; }
+.event.pay { background: linear-gradient(135deg, var(--pay) 0%, var(--keroppi-light) 100%); }
 .event.custom { background: var(--custom); }
 .more-events {
   font-size: 9.5px;
@@ -286,14 +336,14 @@ header {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: var(--text);
+  background: linear-gradient(135deg, var(--keroppi) 0%, var(--keroppi-light) 100%);
   color: white;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 6px 20px rgba(101, 163, 13, 0.45), 0 2px 6px rgba(101, 163, 13, 0.3);
   z-index: 30;
-  transition: transform 0.15s;
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 .fab:active { transform: scale(0.92); }
 .fab svg { width: 26px; height: 26px; }
@@ -547,7 +597,7 @@ header {
   <div class="top-row">
     <div class="title-block">
       <div class="year-label" id="year-label"></div>
-      <div class="month-label" id="month-label"></div>
+      <div class="month-label"><span id="month-label"></span><span class="froggy">🐸</span></div>
     </div>
     <button class="today-btn" id="today">今日</button>
     <button class="icon-btn" id="prev" aria-label="前月">
@@ -646,6 +696,20 @@ const PERSON_KEY = {"こうき":"kouki","ゆい":"yui","給料":"pay","予定":"
 const PERSON_FROM_KEY = {kouki:"こうき", yui:"ゆい", pay:"給料", custom:"予定"};
 const filters = { kouki: true, yui: true, pay: true, custom: true };
 const CUSTOM_KEY = 'shift-cal-custom-v1';
+const REST_LABELS = ['休', '希望休', '有'];
+const MEETING_LABELS = ['会議', 'MTG', 'ミーティング'];
+const OUTING_LABELS = ['出店'];
+
+function eventTypeClass(summary) {
+  if (MEETING_LABELS.includes(summary)) return 't-meeting';
+  if (OUTING_LABELS.includes(summary)) return 't-outing';
+  return '';
+}
+function isBothOff(builtinEvents) {
+  const k = builtinEvents.some(e => e.person === 'こうき' && REST_LABELS.includes(e.summary));
+  const y = builtinEvents.some(e => e.person === 'ゆい' && REST_LABELS.includes(e.summary));
+  return k && y;
+}
 
 let viewYear, viewMonth;
 let editingId = null;
@@ -778,12 +842,18 @@ function render() {
     if (HOLIDAYS.includes(key)) { num.classList.add('holiday'); cell.classList.add('is-holiday'); }
     num.textContent = d;
     if (key === todayKey) cell.classList.add('today');
+
+    // 二人とも休みの日は強調
+    const builtinForDay = (EVENTS[key] || []);
+    if (isBothOff(builtinForDay)) cell.classList.add('both-off');
+
     cell.appendChild(num);
 
     const dayEvents = eventsForDate(key).filter(e => filters[PERSON_KEY[e.person]]);
     dayEvents.slice(0, 3).forEach(e => {
       const ev = document.createElement('div');
-      ev.className = 'event ' + PERSON_KEY[e.person];
+      const typeCls = eventTypeClass(e.summary);
+      ev.className = 'event ' + PERSON_KEY[e.person] + (typeCls ? ' ' + typeCls : '');
       if (e.person === '給料') {
         ev.innerHTML = `<span class="event-label">${escapeHtml(e.summary)}</span>`;
       } else {
