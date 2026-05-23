@@ -2,187 +2,239 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#fef9f4">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="シフト">
 <title>シフトカレンダー</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <style>
 :root {
-  --bg: #fef7ed;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #fff4e6;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --border: #fde6c8;
-  --kouki: #2563eb;
-  --kouki-soft: #dbeafe;
-  --yui: #db2777;
+  --surface-soft: #fafaf9;
+  --surface-2: #f5f5f4;
+  --text: #0c0a09;
+  --text-2: #44403c;
+  --muted: #78716c;
+  --border: #e7e5e4;
+  --border-strong: #d6d3d1;
+  --kouki: #4f46e5;
+  --kouki-soft: #eef2ff;
+  --yui: #be185d;
   --yui-soft: #fce7f3;
-  --pay: #16a34a;
-  --pay-soft: #dcfce7;
-  --today-bg: #fde68a;
-  --today-text: #78350f;
+  --pay: #047857;
+  --pay-soft: #d1fae5;
+  --custom: #c2410c;
+  --custom-soft: #ffedd5;
+  --today: #0c0a09;
   --sun: #dc2626;
   --sat: #2563eb;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.18);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body {
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
   font-weight: 500;
   min-height: 100vh;
   overscroll-behavior: none;
-  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-body { padding-bottom: env(safe-area-inset-bottom); }
+body {
+  padding-bottom: calc(var(--safe-bottom) + 80px);
+  letter-spacing: -0.01em;
+}
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+/* HEADER */
 header {
-  background: var(--surface);
-  padding: 16px 16px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  padding: calc(var(--safe-top) + 12px) 16px 10px;
   position: sticky;
   top: 0;
-  z-index: 10;
-  border-bottom: 2px solid var(--border);
-  box-shadow: 0 2px 8px rgba(180, 130, 60, 0.04);
+  z-index: 20;
+  border-bottom: 1px solid var(--border);
 }
-.nav {
+.top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
-.month-title {
-  font-size: 22px;
-  font-weight: 800;
+.title-block {
   flex: 1;
-  text-align: center;
-  color: #78350f;
-  letter-spacing: 0.02em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
 }
-.nav-btn {
-  background: var(--surface-2);
-  border: 2px solid var(--border);
-  color: #78350f;
+.year-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.month-label {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.icon-btn {
   width: 44px;
   height: 44px;
-  border-radius: 14px;
-  font-size: 22px;
-  font-weight: 700;
-  cursor: pointer;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.1s, background 0.15s;
+  color: var(--text);
+  transition: background 0.15s, transform 0.1s;
 }
-.nav-btn:active { transform: scale(0.92); background: var(--border); }
-.filters {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.chip {
-  padding: 8px 16px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  user-select: none;
-  border: 2px solid;
-  background: var(--surface);
-  transition: transform 0.1s;
-}
-.chip:active { transform: scale(0.94); }
-.chip[data-key="kouki"] { color: var(--kouki); border-color: var(--kouki); }
-.chip[data-key="kouki"].active { background: var(--kouki); color: white; }
-.chip[data-key="yui"] { color: var(--yui); border-color: var(--yui); }
-.chip[data-key="yui"].active { background: var(--yui); color: white; }
-.chip[data-key="pay"] { color: var(--pay); border-color: var(--pay); }
-.chip[data-key="pay"].active { background: var(--pay); color: white; }
-.chip:not(.active) { opacity: 0.55; }
+.icon-btn:active { background: var(--surface-2); transform: scale(0.92); }
+.icon-btn svg { width: 22px; height: 22px; }
 .today-btn {
-  background: var(--today-bg);
-  color: var(--today-text);
-  font-weight: 800;
-  padding: 8px 16px;
+  background: var(--text);
+  color: white;
+  font-weight: 700;
+  padding: 8px 14px;
   border-radius: 999px;
-  border: 2px solid #f59e0b;
   font-size: 13px;
-  margin-left: auto;
-  cursor: pointer;
-  transition: transform 0.1s;
+  letter-spacing: 0.02em;
 }
 .today-btn:active { transform: scale(0.94); }
+
+.filters {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.filters::-webkit-scrollbar { display: none; }
+.chip {
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  user-select: none;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.chip:active { transform: scale(0.94); }
+.chip .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.chip[data-key="kouki"] { color: var(--kouki); }
+.chip[data-key="kouki"].active { background: var(--kouki); color: white; border-color: var(--kouki); }
+.chip[data-key="yui"] { color: var(--yui); }
+.chip[data-key="yui"].active { background: var(--yui); color: white; border-color: var(--yui); }
+.chip[data-key="pay"] { color: var(--pay); }
+.chip[data-key="pay"].active { background: var(--pay); color: white; border-color: var(--pay); }
+.chip[data-key="custom"] { color: var(--custom); }
+.chip[data-key="custom"].active { background: var(--custom); color: white; border-color: var(--custom); }
+.chip:not(.active) .dot { background: currentColor; }
+.chip.active .dot { background: white; }
+
+/* WEEKDAYS */
 .weekdays {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  background: var(--surface);
-  padding: 10px 4px;
-  font-size: 13px;
-  font-weight: 800;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  padding: 12px 8px 8px;
+  font-size: 11px;
+  font-weight: 700;
   text-align: center;
   color: var(--muted);
-  border-bottom: 2px solid var(--border);
+  letter-spacing: 0.06em;
+  background: var(--bg);
 }
 .weekdays .sun { color: var(--sun); }
 .weekdays .sat { color: var(--sat); }
+
+/* GRID */
 .grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
-  padding: 6px;
+  gap: 3px;
+  padding: 0 8px 16px;
 }
 .cell {
   background: var(--surface);
-  min-height: 118px;
+  min-height: 110px;
   min-width: 0;
-  padding: 5px 4px;
+  padding: 6px 4px 5px;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  cursor: pointer;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(180, 130, 60, 0.06);
-  transition: transform 0.1s, box-shadow 0.15s;
-  border: 2px solid transparent;
+  border-radius: 10px;
+  border: 1px solid var(--border);
   overflow: hidden;
+  transition: transform 0.1s;
+  position: relative;
 }
-.cell:active { transform: scale(0.97); box-shadow: 0 2px 6px rgba(180, 130, 60, 0.12); }
-.cell.other-month { opacity: 0.4; background: var(--surface-2); }
+.cell:active { transform: scale(0.97); }
+.cell.other-month {
+  background: var(--surface-soft);
+  border-color: transparent;
+}
+.cell.other-month .date-num { color: var(--muted); opacity: 0.55; }
 .cell.today {
-  border-color: var(--today-bg);
-  background: linear-gradient(180deg, #fffbeb 0%, var(--surface) 50%);
-}
-.cell.today .date-num {
-  background: var(--today-bg);
-  color: var(--today-text);
-  border-radius: 50%;
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 900;
+  border-color: var(--text);
+  border-width: 1.5px;
 }
 .date-num {
   font-size: 14px;
   font-weight: 700;
-  height: 26px;
+  height: 22px;
   display: flex;
   align-items: center;
   padding-left: 2px;
+  color: var(--text-2);
+}
+.cell.today .date-num {
+  background: var(--today);
+  color: white;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  justify-content: center;
+  padding: 0;
+  font-weight: 800;
 }
 .date-num.sun { color: var(--sun); }
 .date-num.sat { color: var(--sat); }
 .date-num.holiday { color: var(--sun); }
+.cell.today.weekday-0 .date-num,
+.cell.today.weekday-6 .date-num,
+.cell.today.is-holiday .date-num { background: var(--today); color: white; }
 .event {
   padding: 2px 3px 3px;
-  border-radius: 6px;
+  border-radius: 5px;
   color: white;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
   min-width: 0;
   max-width: 100%;
   display: flex;
@@ -195,80 +247,120 @@ header {
 .event .event-name {
   font-size: 8px;
   font-weight: 700;
-  opacity: 0.85;
+  opacity: 0.88;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0;
   max-width: 100%;
 }
 .event .event-label {
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
   margin-top: 1px;
+  max-width: 100%;
+  letter-spacing: -0.04em;
 }
-.event.pay .event-label { font-size: 10px; }
-.cell { padding: 5px 3px; }
+.event.pay { padding: 3px 3px; }
+.event.pay .event-label { font-size: 10px; letter-spacing: -0.05em; }
 .event.kouki { background: var(--kouki); }
 .event.yui { background: var(--yui); }
-.event.pay {
-  background: var(--pay);
-  font-weight: 800;
-}
+.event.pay { background: var(--pay); }
+.event.custom { background: var(--custom); }
 .more-events {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--muted);
   font-weight: 700;
-  padding: 0 5px;
+  padding: 0 4px;
+  letter-spacing: 0;
 }
-.modal {
+
+/* FAB */
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(var(--safe-bottom) + 20px);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--text);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  z-index: 30;
+  transition: transform 0.15s;
+}
+.fab:active { transform: scale(0.92); }
+.fab svg { width: 26px; height: 26px; }
+
+/* SHEET / MODAL */
+.sheet-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(12, 10, 9, 0.45);
   display: none;
   align-items: flex-end;
   justify-content: center;
-  z-index: 100;
-  backdrop-filter: blur(4px);
+  z-index: 50;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
-.modal.open { display: flex; animation: fadeIn 0.18s ease-out; }
+.sheet-overlay.open { display: flex; animation: fadeIn 0.2s ease-out; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.modal-content {
+.sheet {
   background: var(--surface);
   width: 100%;
   max-width: 480px;
   border-radius: 24px 24px 0 0;
-  padding: 22px 18px calc(28px + env(safe-area-inset-bottom));
-  max-height: 75vh;
-  overflow-y: auto;
-  animation: slideUp 0.22s ease-out;
-}
-@keyframes slideUp { from { transform: translateY(20px); } to { transform: translateY(0); } }
-.modal-title {
-  font-size: 19px;
-  font-weight: 800;
-  margin-bottom: 16px;
+  padding: 12px 0 0;
+  max-height: 88vh;
+  overflow: hidden;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #78350f;
+  flex-direction: column;
+  animation: slideUp 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+  box-shadow: var(--shadow-lg);
 }
-.modal-close {
-  background: var(--surface-2);
-  border: 2px solid var(--border);
-  color: #78350f;
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.sheet-handle {
   width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
+  height: 5px;
+  background: var(--border-strong);
+  border-radius: 999px;
+  margin: 0 auto 8px;
+}
+.sheet-header {
+  display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  padding: 8px 18px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.sheet-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.sheet-title-sub {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+.sheet-footer {
+  padding: 12px 16px calc(16px + var(--safe-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
 }
 .event-row {
   display: flex;
@@ -277,54 +369,199 @@ header {
   padding: 14px 14px;
   border-radius: 14px;
   margin-bottom: 8px;
-  border: 2px solid;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
 }
-.event-row.kouki { background: var(--kouki-soft); border-color: var(--kouki); }
-.event-row.yui { background: var(--yui-soft); border-color: var(--yui); }
-.event-row.pay { background: var(--pay-soft); border-color: var(--pay); }
-.event-badge {
-  font-size: 13px;
-  font-weight: 800;
-  padding: 4px 10px;
-  border-radius: 999px;
-  color: white;
+.event-row .bullet {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
-.event-badge.kouki { background: var(--kouki); }
-.event-badge.yui { background: var(--yui); }
-.event-badge.pay { background: var(--pay); }
-.event-text {
-  flex: 1;
+.event-row .bullet.kouki { background: var(--kouki); }
+.event-row .bullet.yui { background: var(--yui); }
+.event-row .bullet.pay { background: var(--pay); }
+.event-row .bullet.custom { background: var(--custom); }
+.event-row .text-block { flex: 1; min-width: 0; }
+.event-row .label {
   font-size: 15px;
   font-weight: 700;
   color: var(--text);
+  line-height: 1.3;
 }
-.event-desc {
+.event-row .meta {
   font-size: 12px;
   color: var(--muted);
   font-weight: 600;
   margin-top: 2px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
-.empty-day {
+.event-row .person-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.event-row .person-tag.kouki { background: var(--kouki-soft); color: var(--kouki); }
+.event-row .person-tag.yui { background: var(--yui-soft); color: var(--yui); }
+.event-row .person-tag.pay { background: var(--pay-soft); color: var(--pay); }
+.event-row .person-tag.custom { background: var(--custom-soft); color: var(--custom); }
+.event-row .actions {
+  display: flex;
+  gap: 4px;
+}
+.row-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.row-icon:active { background: var(--surface-2); }
+.row-icon svg { width: 16px; height: 16px; }
+.row-icon.danger { color: var(--yui); }
+.empty {
   text-align: center;
-  padding: 28px;
-  font-size: 15px;
+  padding: 32px 16px;
+  color: var(--muted);
+  font-size: 14px;
   font-weight: 600;
 }
+
+/* BUTTONS */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 13px 18px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.005em;
+  border: 1.5px solid transparent;
+  transition: transform 0.1s;
+  width: 100%;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--text); color: white; }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.btn-danger { background: var(--surface); color: var(--yui); border-color: var(--yui); }
+.btn-row { display: flex; gap: 10px; }
+.btn-row .btn { flex: 1; }
+.btn svg { width: 18px; height: 18px; }
+
+/* FORM */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.field input, .field textarea, .field select {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-soft);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 13px 14px;
+  width: 100%;
+  outline: none;
+  transition: border 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  border-color: var(--text);
+  background: var(--surface);
+}
+.field textarea { resize: vertical; min-height: 60px; }
+.field select {
+  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2378716c' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 38px;
+}
+.type-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.type-option {
+  padding: 12px 8px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-2);
+  transition: all 0.15s;
+}
+.type-option:active { transform: scale(0.95); }
+.type-option .dot { width: 8px; height: 8px; border-radius: 50%; }
+.type-option[data-type="kouki"] .dot { background: var(--kouki); }
+.type-option[data-type="yui"] .dot { background: var(--yui); }
+.type-option[data-type="custom"] .dot { background: var(--custom); }
+.type-option.selected[data-type="kouki"] { background: var(--kouki); color: white; border-color: var(--kouki); }
+.type-option.selected[data-type="yui"] { background: var(--yui); color: white; border-color: var(--yui); }
+.type-option.selected[data-type="custom"] { background: var(--custom); color: white; border-color: var(--custom); }
+.type-option.selected .dot { background: white; }
+.add-event-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  border: 1.5px dashed var(--border-strong);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 14px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.add-event-row:active { background: var(--surface-2); }
+.add-event-row svg { width: 18px; height: 18px; }
 </style>
 </head>
 <body>
 <header>
-  <div class="nav">
-    <button class="nav-btn" id="prev">‹</button>
-    <div class="month-title" id="title"></div>
-    <button class="nav-btn" id="next">›</button>
+  <div class="top-row">
+    <div class="title-block">
+      <div class="year-label" id="year-label"></div>
+      <div class="month-label" id="month-label"></div>
+    </div>
+    <button class="today-btn" id="today">今日</button>
+    <button class="icon-btn" id="prev" aria-label="前月">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <button class="icon-btn" id="next" aria-label="次月">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
   </div>
   <div class="filters">
-    <div class="chip active" data-key="kouki">こうき</div>
-    <div class="chip active" data-key="yui">ゆい</div>
-    <div class="chip active" data-key="pay">給料日</div>
-    <button class="today-btn" id="today">今日</button>
+    <div class="chip active" data-key="kouki"><span class="dot"></span>こうき</div>
+    <div class="chip active" data-key="yui"><span class="dot"></span>ゆい</div>
+    <div class="chip active" data-key="pay"><span class="dot"></span>給料日</div>
+    <div class="chip active" data-key="custom"><span class="dot"></span>予定</div>
   </div>
 </header>
 <div class="weekdays">
@@ -332,13 +569,72 @@ header {
 </div>
 <div class="grid" id="grid"></div>
 
-<div class="modal" id="modal">
-  <div class="modal-content">
-    <div class="modal-title">
-      <span id="modal-date"></span>
-      <button class="modal-close" id="modal-close">×</button>
+<button class="fab" id="fab" aria-label="予定を追加">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<!-- Day Detail Sheet -->
+<div class="sheet-overlay" id="day-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div>
+        <div class="sheet-title" id="day-title"></div>
+        <div class="sheet-title-sub" id="day-subtitle"></div>
+      </div>
+      <button class="icon-btn" id="day-close" aria-label="閉じる">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
-    <div id="modal-events"></div>
+    <div class="sheet-body" id="day-body"></div>
+    <div class="sheet-footer">
+      <button class="btn btn-primary" id="day-add">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        この日に予定を追加
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Form Sheet -->
+<div class="sheet-overlay" id="form-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title" id="form-title">予定を追加</div>
+      <button class="icon-btn" id="form-close" aria-label="閉じる">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <div class="field">
+        <label>日付</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="field">
+        <label>種類</label>
+        <div class="type-picker">
+          <div class="type-option" data-type="kouki"><span class="dot"></span>こうき</div>
+          <div class="type-option" data-type="yui"><span class="dot"></span>ゆい</div>
+          <div class="type-option selected" data-type="custom"><span class="dot"></span>予定</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>タイトル</label>
+        <input type="text" id="f-title" placeholder="例: 美容院、買い物、デート">
+      </div>
+      <div class="field">
+        <label>メモ(任意)</label>
+        <textarea id="f-desc" placeholder=""></textarea>
+      </div>
+    </div>
+    <div class="sheet-footer">
+      <div class="btn-row">
+        <button class="btn btn-danger" id="f-delete" style="display:none;">削除</button>
+        <button class="btn btn-secondary" id="f-cancel">キャンセル</button>
+        <button class="btn btn-primary" id="f-save">保存</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -346,19 +642,46 @@ header {
 const EVENTS = {"2026-06-01": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "希望休"}], "2026-06-02": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "MTG"}], "2026-06-04": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-05": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-06": [{"person": "こうき", "summary": "出店"}], "2026-06-07": [{"person": "こうき", "summary": "出店"}], "2026-06-08": [{"person": "こうき", "summary": "休"}], "2026-06-09": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-10": [{"person": "こうき", "summary": "出店"}, {"person": "ゆい", "summary": "休"}], "2026-06-11": [{"person": "こうき", "summary": "休"}], "2026-06-12": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-13": [{"person": "こうき", "summary": "出店"}], "2026-06-14": [{"person": "こうき", "summary": "出店"}], "2026-06-15": [{"person": "こうき", "summary": "会議"}], "2026-06-16": [{"person": "ゆい", "summary": "休"}], "2026-06-17": [{"person": "こうき", "summary": "休"}], "2026-06-18": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-19": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "出店"}, {"person": "給料", "summary": "給料日", "desc": "6月分給与"}], "2026-06-20": [{"person": "こうき", "summary": "出店"}], "2026-06-21": [{"person": "こうき", "summary": "出店"}], "2026-06-22": [{"person": "こうき", "summary": "休"}], "2026-06-23": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-24": [{"person": "こうき", "summary": "会議"}], "2026-06-25": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "有"}], "2026-06-26": [{"person": "こうき", "summary": "休"}], "2026-06-27": [{"person": "こうき", "summary": "出店"}, {"person": "ゆい", "summary": "希望休"}], "2026-06-28": [{"person": "ゆい", "summary": "出店"}], "2026-06-29": [{"person": "こうき", "summary": "有"}], "2026-06-30": [{"person": "こうき", "summary": "会議"}], "2026-01-20": [{"person": "給料", "summary": "給料日", "desc": "1月分給与"}], "2026-02-20": [{"person": "給料", "summary": "給料日", "desc": "2月分給与"}], "2026-03-19": [{"person": "給料", "summary": "給料日", "desc": "3月分給与"}], "2026-04-20": [{"person": "給料", "summary": "給料日", "desc": "4月分給与"}], "2026-05-20": [{"person": "給料", "summary": "給料日", "desc": "5月分給与"}], "2026-07-17": [{"person": "給料", "summary": "給料日", "desc": "7月分給与"}], "2026-08-20": [{"person": "給料", "summary": "給料日", "desc": "8月分給与"}], "2026-09-18": [{"person": "給料", "summary": "給料日", "desc": "9月分給与"}], "2026-10-20": [{"person": "給料", "summary": "給料日", "desc": "10月分給与"}], "2026-11-20": [{"person": "給料", "summary": "給料日", "desc": "11月分給与"}], "2026-12-18": [{"person": "給料", "summary": "給料日", "desc": "12月分給与"}], "2026-07-10": [{"person": "給料", "summary": "ボーナス", "desc": "ボーナス(7/10)"}], "2026-12-10": [{"person": "給料", "summary": "ボーナス", "desc": "ボーナス(12/10)"}]};
 const HOLIDAYS = ["2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20", "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06", "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-23", "2026-10-12", "2026-11-03", "2026-11-23"];
 
-const PERSON_KEY = {"こうき":"kouki","ゆい":"yui","給料":"pay"};
-const filters = { kouki: true, yui: true, pay: true };
+const PERSON_KEY = {"こうき":"kouki","ゆい":"yui","給料":"pay","予定":"custom"};
+const PERSON_FROM_KEY = {kouki:"こうき", yui:"ゆい", pay:"給料", custom:"予定"};
+const filters = { kouki: true, yui: true, pay: true, custom: true };
+const CUSTOM_KEY = 'shift-cal-custom-v1';
 
 let viewYear, viewMonth;
+let editingId = null;
+let formType = 'custom';
+
+function loadCustom() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]'); }
+  catch { return []; }
+}
+function saveCustom(arr) {
+  localStorage.setItem(CUSTOM_KEY, JSON.stringify(arr));
+}
+function eventsForDate(key) {
+  const builtin = (EVENTS[key] || []).map(e => ({...e, _builtin: true}));
+  const custom = loadCustom().filter(e => e.date === key).map(e => ({
+    id: e.id,
+    person: PERSON_FROM_KEY[e.type] || "予定",
+    summary: e.title,
+    desc: e.desc,
+    _builtin: false,
+  }));
+  return [...builtin, ...custom];
+}
+
+function pad(n) { return String(n).padStart(2,'0'); }
+function dateKey(y,m,d) { return `${y}-${pad(m+1)}-${pad(d)}`; }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 function init() {
   const today = new Date();
   viewYear = today.getFullYear();
   viewMonth = today.getMonth();
   render();
-  document.getElementById('prev').onclick = () => { shift(-1); };
-  document.getElementById('next').onclick = () => { shift(1); };
-  document.getElementById('today').onclick = () => { viewYear=today.getFullYear(); viewMonth=today.getMonth(); render(); };
+  document.getElementById('prev').onclick = () => shift(-1);
+  document.getElementById('next').onclick = () => shift(1);
+  document.getElementById('today').onclick = () => { const t=new Date(); viewYear=t.getFullYear(); viewMonth=t.getMonth(); render(); };
   document.querySelectorAll('.chip').forEach(c => {
     c.onclick = () => {
       const k = c.dataset.key;
@@ -367,8 +690,42 @@ function init() {
       render();
     };
   });
-  document.getElementById('modal-close').onclick = closeModal;
-  document.getElementById('modal').onclick = e => { if (e.target.id==='modal') closeModal(); };
+  document.getElementById('fab').onclick = () => openForm(null, dateKey(viewYear, viewMonth, new Date().getDate()));
+  document.getElementById('day-close').onclick = closeDaySheet;
+  document.getElementById('day-overlay').onclick = e => { if (e.target.id==='day-overlay') closeDaySheet(); };
+  document.getElementById('day-add').onclick = () => {
+    const key = document.getElementById('day-overlay').dataset.dateKey;
+    closeDaySheet();
+    openForm(null, key);
+  };
+  document.getElementById('form-close').onclick = closeForm;
+  document.getElementById('f-cancel').onclick = closeForm;
+  document.getElementById('form-overlay').onclick = e => { if (e.target.id==='form-overlay') closeForm(); };
+  document.getElementById('f-save').onclick = saveForm;
+  document.getElementById('f-delete').onclick = deleteForm;
+  document.querySelectorAll('.type-option').forEach(o => {
+    o.onclick = () => {
+      document.querySelectorAll('.type-option').forEach(x => x.classList.remove('selected'));
+      o.classList.add('selected');
+      formType = o.dataset.type;
+    };
+  });
+
+  let swipeStart = null;
+  document.body.addEventListener('touchstart', e => {
+    if (e.target.closest('.sheet-overlay')) return;
+    swipeStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() };
+  }, { passive: true });
+  document.body.addEventListener('touchend', e => {
+    if (!swipeStart) return;
+    const dx = e.changedTouches[0].clientX - swipeStart.x;
+    const dy = e.changedTouches[0].clientY - swipeStart.y;
+    const dt = Date.now() - swipeStart.time;
+    if (dt < 400 && Math.abs(dx) > 80 && Math.abs(dy) < 50) {
+      shift(dx < 0 ? 1 : -1);
+    }
+    swipeStart = null;
+  }, { passive: true });
 }
 
 function shift(delta) {
@@ -378,11 +735,9 @@ function shift(delta) {
   render();
 }
 
-function pad(n) { return String(n).padStart(2,'0'); }
-function dateKey(y,m,d) { return `${y}-${pad(m+1)}-${pad(d)}`; }
-
 function render() {
-  document.getElementById('title').textContent = `${viewYear}年 ${viewMonth+1}月`;
+  document.getElementById('year-label').textContent = `${viewYear}`;
+  document.getElementById('month-label').textContent = `${viewMonth+1}月`;
   const first = new Date(viewYear, viewMonth, 1);
   const startWeekday = first.getDay();
   const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
@@ -414,24 +769,25 @@ function render() {
     }
     const key = dateKey(y, m, d);
     const weekday = i % 7;
+    cell.classList.add('weekday-' + weekday);
 
     const num = document.createElement('div');
     num.className = 'date-num';
     if (weekday === 0) num.classList.add('sun');
     if (weekday === 6) num.classList.add('sat');
-    if (HOLIDAYS.includes(key)) num.classList.add('holiday');
+    if (HOLIDAYS.includes(key)) { num.classList.add('holiday'); cell.classList.add('is-holiday'); }
     num.textContent = d;
     if (key === todayKey) cell.classList.add('today');
     cell.appendChild(num);
 
-    const dayEvents = (EVENTS[key] || []).filter(e => filters[PERSON_KEY[e.person]]);
+    const dayEvents = eventsForDate(key).filter(e => filters[PERSON_KEY[e.person]]);
     dayEvents.slice(0, 3).forEach(e => {
       const ev = document.createElement('div');
       ev.className = 'event ' + PERSON_KEY[e.person];
       if (e.person === '給料') {
-        ev.innerHTML = `<span class="event-label">${e.summary}</span>`;
+        ev.innerHTML = `<span class="event-label">${escapeHtml(e.summary)}</span>`;
       } else {
-        ev.innerHTML = `<span class="event-name">${e.person}</span><span class="event-label">${e.summary}</span>`;
+        ev.innerHTML = `<span class="event-name">${e.person}</span><span class="event-label">${escapeHtml(e.summary)}</span>`;
       }
       cell.appendChild(ev);
     });
@@ -442,38 +798,136 @@ function render() {
       cell.appendChild(more);
     }
 
-    cell.onclick = () => openModal(key, y, m, d);
+    cell.onclick = () => openDaySheet(key, y, m, d);
     grid.appendChild(cell);
   }
 }
 
-function openModal(key, y, m, d) {
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function openDaySheet(key, y, m, d) {
   const wd = ['日','月','火','水','木','金','土'][new Date(y, m, d).getDay()];
-  document.getElementById('modal-date').textContent = `${y}/${m+1}/${d} (${wd})`;
-  const list = document.getElementById('modal-events');
-  list.innerHTML = '';
-  const events = EVENTS[key] || [];
+  document.getElementById('day-title').textContent = `${m+1}月${d}日`;
+  document.getElementById('day-subtitle').textContent = `${y}年 ${wd}曜日`;
+  const body = document.getElementById('day-body');
+  body.innerHTML = '';
+  const events = eventsForDate(key);
   if (events.length === 0) {
-    list.innerHTML = '<div class="empty-day">予定なし</div>';
+    body.innerHTML = '<div class="empty">予定なし</div>';
   } else {
     events.forEach(e => {
       const cls = PERSON_KEY[e.person];
       const row = document.createElement('div');
-      row.className = 'event-row ' + cls;
+      row.className = 'event-row';
+      const actionsHtml = !e._builtin ? `
+        <div class="actions">
+          <button class="row-icon" data-edit="${e.id}" aria-label="編集">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+        </div>` : '';
       row.innerHTML = `
-        <div class="event-badge ${cls}">${e.person}</div>
-        <div>
-          <div class="event-text">${e.summary}</div>
-          ${e.desc ? `<div class="event-desc">${e.desc}</div>` : ''}
+        <div class="bullet ${cls}"></div>
+        <div class="text-block">
+          <div class="label">${escapeHtml(e.summary)}</div>
+          <div class="meta">
+            <span class="person-tag ${cls}">${e.person}</span>
+            ${e.desc ? '<span>' + escapeHtml(e.desc) + '</span>' : ''}
+          </div>
         </div>
+        ${actionsHtml}
       `;
-      list.appendChild(row);
+      body.appendChild(row);
+    });
+    body.querySelectorAll('[data-edit]').forEach(b => {
+      b.onclick = (ev) => {
+        ev.stopPropagation();
+        const id = b.dataset.edit;
+        closeDaySheet();
+        openForm(id);
+      };
     });
   }
-  document.getElementById('modal').classList.add('open');
+  document.getElementById('day-overlay').dataset.dateKey = key;
+  document.getElementById('day-overlay').classList.add('open');
 }
 
-function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function closeDaySheet() {
+  document.getElementById('day-overlay').classList.remove('open');
+}
+
+function openForm(id, dateKeyHint) {
+  editingId = id;
+  document.getElementById('form-title').textContent = id ? '予定を編集' : '予定を追加';
+  document.getElementById('f-delete').style.display = id ? 'flex' : 'none';
+
+  let date, type, title, desc;
+  if (id) {
+    const item = loadCustom().find(e => e.id === id);
+    if (!item) return;
+    date = item.date;
+    type = item.type;
+    title = item.title;
+    desc = item.desc || '';
+  } else {
+    date = dateKeyHint || dateKey(viewYear, viewMonth, new Date().getDate());
+    type = 'custom';
+    title = '';
+    desc = '';
+  }
+  document.getElementById('f-date').value = date;
+  document.getElementById('f-title').value = title;
+  document.getElementById('f-desc').value = desc;
+  formType = type;
+  document.querySelectorAll('.type-option').forEach(o => {
+    o.classList.toggle('selected', o.dataset.type === type);
+  });
+  document.getElementById('form-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('f-title').focus(), 240);
+}
+
+function closeForm() {
+  document.getElementById('form-overlay').classList.remove('open');
+  editingId = null;
+}
+
+function saveForm() {
+  const date = document.getElementById('f-date').value;
+  const title = document.getElementById('f-title').value.trim();
+  const desc = document.getElementById('f-desc').value.trim();
+  if (!date || !title) {
+    document.getElementById('f-title').focus();
+    return;
+  }
+  const arr = loadCustom();
+  if (editingId) {
+    const idx = arr.findIndex(e => e.id === editingId);
+    if (idx >= 0) arr[idx] = { id: editingId, date, type: formType, title, desc };
+  } else {
+    arr.push({ id: uid(), date, type: formType, title, desc });
+  }
+  saveCustom(arr);
+  closeForm();
+  const [y, mm, d] = date.split('-').map(Number);
+  viewYear = y; viewMonth = mm - 1;
+  render();
+  setTimeout(() => openDaySheet(date, y, mm - 1, d), 100);
+}
+
+function deleteForm() {
+  if (!editingId) return;
+  if (!confirm('この予定を削除します。よろしいですか?')) return;
+  const arr = loadCustom().filter(e => e.id !== editingId);
+  saveCustom(arr);
+  const date = document.getElementById('f-date').value;
+  closeForm();
+  render();
+  if (date) {
+    const [y, mm, d] = date.split('-').map(Number);
+    setTimeout(() => openDaySheet(date, y, mm - 1, d), 100);
+  }
+}
 
 init();
 
