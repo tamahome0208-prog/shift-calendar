@@ -26,6 +26,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <title>シフトカレンダー</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
+<script src="firebase-config.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
@@ -1047,10 +1048,17 @@ let allCustomEvents = [];
 const Storage = {
   events() { return allCustomEvents; },
   async init() {
+    // 優先順: 1) localStorageで手動上書き 2) firebase-config.js(window) 3) ローカルのみ
+    let cfg = null;
     const cfgStr = localStorage.getItem(LS_FBCONFIG);
     if (cfgStr) {
+      try { cfg = JSON.parse(cfgStr); } catch {}
+    }
+    if (!cfg && window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey) {
+      cfg = window.FIREBASE_CONFIG;
+    }
+    if (cfg) {
       try {
-        const cfg = JSON.parse(cfgStr);
         await this.initFirebase(cfg);
       } catch (e) {
         console.warn('Firebase init failed, fallback to local', e);
