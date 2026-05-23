@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#fef9f4">
+<title>シフトカレンダー</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+:root {
+  --bg: #fef7ed;
+  --surface: #ffffff;
+  --surface-2: #fff4e6;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #fde6c8;
+  --kouki: #2563eb;
+  --kouki-soft: #dbeafe;
+  --yui: #db2777;
+  --yui-soft: #fce7f3;
+  --pay: #16a34a;
+  --pay-soft: #dcfce7;
+  --today-bg: #fde68a;
+  --today-text: #78350f;
+  --sun: #dc2626;
+  --sat: #2563eb;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  font-weight: 500;
+  min-height: 100vh;
+  overscroll-behavior: none;
+  letter-spacing: 0.01em;
+}
+body { padding-bottom: env(safe-area-inset-bottom); }
+header {
+  background: var(--surface);
+  padding: 16px 16px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 2px solid var(--border);
+  box-shadow: 0 2px 8px rgba(180, 130, 60, 0.04);
+}
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.month-title {
+  font-size: 22px;
+  font-weight: 800;
+  flex: 1;
+  text-align: center;
+  color: #78350f;
+  letter-spacing: 0.02em;
+}
+.nav-btn {
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  color: #78350f;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  font-size: 22px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s, background 0.15s;
+}
+.nav-btn:active { transform: scale(0.92); background: var(--border); }
+.filters {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.chip {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  border: 2px solid;
+  background: var(--surface);
+  transition: transform 0.1s;
+}
+.chip:active { transform: scale(0.94); }
+.chip[data-key="kouki"] { color: var(--kouki); border-color: var(--kouki); }
+.chip[data-key="kouki"].active { background: var(--kouki); color: white; }
+.chip[data-key="yui"] { color: var(--yui); border-color: var(--yui); }
+.chip[data-key="yui"].active { background: var(--yui); color: white; }
+.chip[data-key="pay"] { color: var(--pay); border-color: var(--pay); }
+.chip[data-key="pay"].active { background: var(--pay); color: white; }
+.chip:not(.active) { opacity: 0.55; }
+.today-btn {
+  background: var(--today-bg);
+  color: var(--today-text);
+  font-weight: 800;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 2px solid #f59e0b;
+  font-size: 13px;
+  margin-left: auto;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.today-btn:active { transform: scale(0.94); }
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--surface);
+  padding: 10px 4px;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--muted);
+  border-bottom: 2px solid var(--border);
+}
+.weekdays .sun { color: var(--sun); }
+.weekdays .sat { color: var(--sat); }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px;
+}
+.cell {
+  background: var(--surface);
+  min-height: 118px;
+  min-width: 0;
+  padding: 5px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(180, 130, 60, 0.06);
+  transition: transform 0.1s, box-shadow 0.15s;
+  border: 2px solid transparent;
+  overflow: hidden;
+}
+.cell:active { transform: scale(0.97); box-shadow: 0 2px 6px rgba(180, 130, 60, 0.12); }
+.cell.other-month { opacity: 0.4; background: var(--surface-2); }
+.cell.today {
+  border-color: var(--today-bg);
+  background: linear-gradient(180deg, #fffbeb 0%, var(--surface) 50%);
+}
+.cell.today .date-num {
+  background: var(--today-bg);
+  color: var(--today-text);
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+}
+.date-num {
+  font-size: 14px;
+  font-weight: 700;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  padding-left: 2px;
+}
+.date-num.sun { color: var(--sun); }
+.date-num.sat { color: var(--sat); }
+.date-num.holiday { color: var(--sun); }
+.event {
+  padding: 2px 3px 3px;
+  border-radius: 6px;
+  color: white;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  overflow: hidden;
+  text-align: center;
+}
+.event .event-name {
+  font-size: 8px;
+  font-weight: 700;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.event .event-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin-top: 1px;
+}
+.event.pay .event-label { font-size: 10px; }
+.cell { padding: 5px 3px; }
+.event.kouki { background: var(--kouki); }
+.event.yui { background: var(--yui); }
+.event.pay {
+  background: var(--pay);
+  font-weight: 800;
+}
+.more-events {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 0 5px;
+}
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+.modal.open { display: flex; animation: fadeIn 0.18s ease-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal-content {
+  background: var(--surface);
+  width: 100%;
+  max-width: 480px;
+  border-radius: 24px 24px 0 0;
+  padding: 22px 18px calc(28px + env(safe-area-inset-bottom));
+  max-height: 75vh;
+  overflow-y: auto;
+  animation: slideUp 0.22s ease-out;
+}
+@keyframes slideUp { from { transform: translateY(20px); } to { transform: translateY(0); } }
+.modal-title {
+  font-size: 19px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #78350f;
+}
+.modal-close {
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  color: #78350f;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px;
+  border-radius: 14px;
+  margin-bottom: 8px;
+  border: 2px solid;
+}
+.event-row.kouki { background: var(--kouki-soft); border-color: var(--kouki); }
+.event-row.yui { background: var(--yui-soft); border-color: var(--yui); }
+.event-row.pay { background: var(--pay-soft); border-color: var(--pay); }
+.event-badge {
+  font-size: 13px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: white;
+}
+.event-badge.kouki { background: var(--kouki); }
+.event-badge.yui { background: var(--yui); }
+.event-badge.pay { background: var(--pay); }
+.event-text {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.event-desc {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.empty-day {
+  color: var(--muted);
+  text-align: center;
+  padding: 28px;
+  font-size: 15px;
+  font-weight: 600;
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="nav">
+    <button class="nav-btn" id="prev">‹</button>
+    <div class="month-title" id="title"></div>
+    <button class="nav-btn" id="next">›</button>
+  </div>
+  <div class="filters">
+    <div class="chip active" data-key="kouki">こうき</div>
+    <div class="chip active" data-key="yui">ゆい</div>
+    <div class="chip active" data-key="pay">給料日</div>
+    <button class="today-btn" id="today">今日</button>
+  </div>
+</header>
+<div class="weekdays">
+  <div class="sun">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="sat">土</div>
+</div>
+<div class="grid" id="grid"></div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <div class="modal-title">
+      <span id="modal-date"></span>
+      <button class="modal-close" id="modal-close">×</button>
+    </div>
+    <div id="modal-events"></div>
+  </div>
+</div>
+
+<script>
+const EVENTS = {"2026-06-01": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "希望休"}], "2026-06-02": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "MTG"}], "2026-06-04": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-05": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-06": [{"person": "こうき", "summary": "出店"}], "2026-06-07": [{"person": "こうき", "summary": "出店"}], "2026-06-08": [{"person": "こうき", "summary": "休"}], "2026-06-09": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-10": [{"person": "こうき", "summary": "出店"}, {"person": "ゆい", "summary": "休"}], "2026-06-11": [{"person": "こうき", "summary": "休"}], "2026-06-12": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-13": [{"person": "こうき", "summary": "出店"}], "2026-06-14": [{"person": "こうき", "summary": "出店"}], "2026-06-15": [{"person": "こうき", "summary": "会議"}], "2026-06-16": [{"person": "ゆい", "summary": "休"}], "2026-06-17": [{"person": "こうき", "summary": "休"}], "2026-06-18": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-19": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "出店"}, {"person": "給料", "summary": "給料日", "desc": "6月分給与"}], "2026-06-20": [{"person": "こうき", "summary": "出店"}], "2026-06-21": [{"person": "こうき", "summary": "出店"}], "2026-06-22": [{"person": "こうき", "summary": "休"}], "2026-06-23": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-24": [{"person": "こうき", "summary": "会議"}], "2026-06-25": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "有"}], "2026-06-26": [{"person": "こうき", "summary": "休"}], "2026-06-27": [{"person": "こうき", "summary": "出店"}, {"person": "ゆい", "summary": "希望休"}], "2026-06-28": [{"person": "ゆい", "summary": "出店"}], "2026-06-29": [{"person": "こうき", "summary": "有"}], "2026-06-30": [{"person": "こうき", "summary": "会議"}], "2026-01-20": [{"person": "給料", "summary": "給料日", "desc": "1月分給与"}], "2026-02-20": [{"person": "給料", "summary": "給料日", "desc": "2月分給与"}], "2026-03-19": [{"person": "給料", "summary": "給料日", "desc": "3月分給与"}], "2026-04-20": [{"person": "給料", "summary": "給料日", "desc": "4月分給与"}], "2026-05-20": [{"person": "給料", "summary": "給料日", "desc": "5月分給与"}], "2026-07-17": [{"person": "給料", "summary": "給料日", "desc": "7月分給与"}], "2026-08-20": [{"person": "給料", "summary": "給料日", "desc": "8月分給与"}], "2026-09-18": [{"person": "給料", "summary": "給料日", "desc": "9月分給与"}], "2026-10-20": [{"person": "給料", "summary": "給料日", "desc": "10月分給与"}], "2026-11-20": [{"person": "給料", "summary": "給料日", "desc": "11月分給与"}], "2026-12-18": [{"person": "給料", "summary": "給料日", "desc": "12月分給与"}], "2026-07-10": [{"person": "給料", "summary": "ボーナス", "desc": "ボーナス(7/10)"}], "2026-12-10": [{"person": "給料", "summary": "ボーナス", "desc": "ボーナス(12/10)"}]};
+const HOLIDAYS = ["2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20", "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06", "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-23", "2026-10-12", "2026-11-03", "2026-11-23"];
+
+const PERSON_KEY = {"こうき":"kouki","ゆい":"yui","給料":"pay"};
+const filters = { kouki: true, yui: true, pay: true };
+
+let viewYear, viewMonth;
+
+function init() {
+  const today = new Date();
+  viewYear = today.getFullYear();
+  viewMonth = today.getMonth();
+  render();
+  document.getElementById('prev').onclick = () => { shift(-1); };
+  document.getElementById('next').onclick = () => { shift(1); };
+  document.getElementById('today').onclick = () => { viewYear=today.getFullYear(); viewMonth=today.getMonth(); render(); };
+  document.querySelectorAll('.chip').forEach(c => {
+    c.onclick = () => {
+      const k = c.dataset.key;
+      filters[k] = !filters[k];
+      c.classList.toggle('active');
+      render();
+    };
+  });
+  document.getElementById('modal-close').onclick = closeModal;
+  document.getElementById('modal').onclick = e => { if (e.target.id==='modal') closeModal(); };
+}
+
+function shift(delta) {
+  viewMonth += delta;
+  if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+  if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  render();
+}
+
+function pad(n) { return String(n).padStart(2,'0'); }
+function dateKey(y,m,d) { return `${y}-${pad(m+1)}-${pad(d)}`; }
+
+function render() {
+  document.getElementById('title').textContent = `${viewYear}年 ${viewMonth+1}月`;
+  const first = new Date(viewYear, viewMonth, 1);
+  const startWeekday = first.getDay();
+  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+  const prevDays = new Date(viewYear, viewMonth, 0).getDate();
+  const today = new Date();
+  const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  const totalCells = Math.ceil((startWeekday + daysInMonth) / 7) * 7;
+  for (let i = 0; i < totalCells; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    let y, m, d;
+    if (i < startWeekday) {
+      d = prevDays - startWeekday + i + 1;
+      m = viewMonth - 1; y = viewYear;
+      if (m < 0) { m = 11; y--; }
+      cell.classList.add('other-month');
+    } else if (i >= startWeekday + daysInMonth) {
+      d = i - startWeekday - daysInMonth + 1;
+      m = viewMonth + 1; y = viewYear;
+      if (m > 11) { m = 0; y++; }
+      cell.classList.add('other-month');
+    } else {
+      d = i - startWeekday + 1;
+      m = viewMonth; y = viewYear;
+    }
+    const key = dateKey(y, m, d);
+    const weekday = i % 7;
+
+    const num = document.createElement('div');
+    num.className = 'date-num';
+    if (weekday === 0) num.classList.add('sun');
+    if (weekday === 6) num.classList.add('sat');
+    if (HOLIDAYS.includes(key)) num.classList.add('holiday');
+    num.textContent = d;
+    if (key === todayKey) cell.classList.add('today');
+    cell.appendChild(num);
+
+    const dayEvents = (EVENTS[key] || []).filter(e => filters[PERSON_KEY[e.person]]);
+    dayEvents.slice(0, 3).forEach(e => {
+      const ev = document.createElement('div');
+      ev.className = 'event ' + PERSON_KEY[e.person];
+      if (e.person === '給料') {
+        ev.innerHTML = `<span class="event-label">${e.summary}</span>`;
+      } else {
+        ev.innerHTML = `<span class="event-name">${e.person}</span><span class="event-label">${e.summary}</span>`;
+      }
+      cell.appendChild(ev);
+    });
+    if (dayEvents.length > 3) {
+      const more = document.createElement('div');
+      more.className = 'more-events';
+      more.textContent = `+${dayEvents.length - 3}件`;
+      cell.appendChild(more);
+    }
+
+    cell.onclick = () => openModal(key, y, m, d);
+    grid.appendChild(cell);
+  }
+}
+
+function openModal(key, y, m, d) {
+  const wd = ['日','月','火','水','木','金','土'][new Date(y, m, d).getDay()];
+  document.getElementById('modal-date').textContent = `${y}/${m+1}/${d} (${wd})`;
+  const list = document.getElementById('modal-events');
+  list.innerHTML = '';
+  const events = EVENTS[key] || [];
+  if (events.length === 0) {
+    list.innerHTML = '<div class="empty-day">予定なし</div>';
+  } else {
+    events.forEach(e => {
+      const cls = PERSON_KEY[e.person];
+      const row = document.createElement('div');
+      row.className = 'event-row ' + cls;
+      row.innerHTML = `
+        <div class="event-badge ${cls}">${e.person}</div>
+        <div>
+          <div class="event-text">${e.summary}</div>
+          ${e.desc ? `<div class="event-desc">${e.desc}</div>` : ''}
+        </div>
+      `;
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+init();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
