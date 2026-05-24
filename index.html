@@ -474,6 +474,101 @@ header {
 .memo-actions { display: flex; justify-content: flex-end; }
 .memo-actions .btn { width: auto; padding: 8px 18px; font-size: 13px; }
 
+/* === HERO CARD === */
+.hero-card {
+  margin: 12px 12px 4px;
+  padding: 14px 14px 14px;
+  background:
+    radial-gradient(ellipse at top right, rgba(255, 183, 211, 0.18) 0%, transparent 55%),
+    linear-gradient(135deg, #FFF8FB 0%, #FBFFF6 55%, #F0F8E3 100%);
+  border: 1.5px solid var(--mint-soft);
+  border-radius: 22px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  animation: heroIn 0.5s var(--ease-out);
+}
+@keyframes heroIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.hero-status {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 12px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  padding: 0 4px;
+}
+.hero-status.hot {
+  background: linear-gradient(135deg, var(--cheek-deep) 0%, var(--yui) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 900;
+  font-size: 15px;
+}
+.hero-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 7px;
+}
+.hero-stat {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1.5px solid var(--border);
+  border-radius: 15px;
+  padding: 10px 6px 9px;
+  text-align: center;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.18s var(--ease-spring), box-shadow 0.18s var(--ease-out), border-color 0.18s var(--ease-out);
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.hero-stat:active { transform: scale(0.94); box-shadow: var(--shadow-sm); }
+.hero-stat-label {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.hero-stat-value {
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  font-family: var(--font-en);
+  letter-spacing: -0.02em;
+}
+.hero-stat-value .unit { font-size: 11px; font-weight: 700; margin-left: 1px; }
+.hero-stat-sub {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-weight: 700;
+  margin-top: 4px;
+  font-family: var(--font-en);
+  letter-spacing: 0;
+}
+.hero-stat.date-stat .hero-stat-value { color: var(--cheek-deep); }
+.hero-stat.date-stat { border-color: var(--lily-pink); }
+.hero-stat.salary-stat .hero-stat-value { color: var(--leaf-dark); }
+.hero-stat.salary-stat { border-color: var(--mint-soft); }
+.hero-stat.count-stat .hero-stat-value { color: var(--yui); }
+.hero-stat.count-stat { border-color: var(--yui-soft); }
+.hero-stat.today-flag {
+  background: linear-gradient(135deg, #FFF1F9 0%, #FFFBEB 100%);
+  border-color: var(--cheek);
+  animation: todayGlow 2.4s ease-in-out infinite;
+}
+@keyframes todayGlow {
+  0%, 100% { box-shadow: 0 4px 12px rgba(255, 122, 165, 0.25); }
+  50% { box-shadow: 0 6px 18px rgba(255, 122, 165, 0.45); }
+}
+
 /* === FAB === */
 .fab {
   position: fixed;
@@ -958,6 +1053,27 @@ header {
 
 <div id="notice-area"></div>
 
+<section class="hero-card" id="hero-card">
+  <div class="hero-status" id="hero-status">…</div>
+  <div class="hero-stats">
+    <button class="hero-stat date-stat" id="hero-stat-date" type="button" aria-label="次のデート日にジャンプ">
+      <div class="hero-stat-label">NEXT DATE</div>
+      <div class="hero-stat-value" id="hero-stat-date-value">—</div>
+      <div class="hero-stat-sub" id="hero-stat-date-sub"></div>
+    </button>
+    <button class="hero-stat salary-stat" id="hero-stat-salary" type="button" aria-label="次の給料日にジャンプ">
+      <div class="hero-stat-label">NEXT 給料</div>
+      <div class="hero-stat-value" id="hero-stat-salary-value">—</div>
+      <div class="hero-stat-sub" id="hero-stat-salary-sub"></div>
+    </button>
+    <button class="hero-stat count-stat" id="hero-stat-count" type="button" aria-label="この月のデート可能日数">
+      <div class="hero-stat-label">今月デート</div>
+      <div class="hero-stat-value" id="hero-stat-count-value">—</div>
+      <div class="hero-stat-sub">回</div>
+    </button>
+  </div>
+</section>
+
 <div class="weekdays">
   <div class="sun">SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div class="sat">SAT</div>
 </div>
@@ -1256,6 +1372,111 @@ function eventsForDate(key) {
 }
 function fmtTime(t) { return t ? t : ''; }
 
+// ====================  HERO CARD  ====================
+function renderHero() {
+  const today = new Date();
+  const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+  const WD = ['日','月','火','水','木','金','土'];
+
+  // 次のデート(両方休み)を365日先まで探索
+  let nextDate = null;
+  for (let i = 0; i < 366; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    const k = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const builtin = EVENTS[k] || [];
+    if (isBothOff(builtin)) { nextDate = { d, k, days: i }; break; }
+  }
+  // 次の給料日(ボーナス含む)
+  let nextSalary = null;
+  for (let i = 0; i < 366; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    const k = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const builtin = EVENTS[k] || [];
+    if (builtin.some(e => e.person === '給料')) { nextSalary = { d, k, days: i }; break; }
+  }
+  // 今月の両方休み回数
+  let monthCount = 0;
+  const dim = new Date(viewYear, viewMonth+1, 0).getDate();
+  for (let dd = 1; dd <= dim; dd++) {
+    const k = dateKey(viewYear, viewMonth, dd);
+    if (isBothOff(EVENTS[k] || [])) monthCount++;
+  }
+
+  // 今日のステータスメッセージ
+  const todayBuiltin = EVENTS[todayKey] || [];
+  let statusMsg = '今日もおつかれさま';
+  let hot = false;
+  if (isBothOff(todayBuiltin)) {
+    statusMsg = '今日は二人ともおやすみ。デート日です';
+    hot = true;
+  } else if (todayBuiltin.some(e => e.person === '給料' && e.summary === 'ボーナス')) {
+    statusMsg = '今日はボーナス支給日';
+    hot = true;
+  } else if (todayBuiltin.some(e => e.person === '給料' && e.summary === '給料日')) {
+    statusMsg = '今日は給料日';
+    hot = true;
+  } else if (todayBuiltin.some(e => e.summary === 'A')) {
+    const aPersons = todayBuiltin.filter(e => e.summary === 'A').map(e => e.person);
+    statusMsg = `${aPersons.join('・')} は今日A番 (8:15〜17:15)`;
+  } else if (nextDate && nextDate.days > 0 && nextDate.days <= 7) {
+    statusMsg = `あと ${nextDate.days} 日で二人のおやすみ`;
+  } else if (nextSalary && nextSalary.days > 0 && nextSalary.days <= 5) {
+    statusMsg = `あと ${nextSalary.days} 日で給料日`;
+  }
+  const status = document.getElementById('hero-status');
+  status.textContent = statusMsg;
+  status.classList.toggle('hot', hot);
+
+  // 数値セット
+  const setStat = (id, days, d, todayClass) => {
+    const valEl = document.getElementById(`hero-stat-${id}-value`);
+    const subEl = document.getElementById(`hero-stat-${id}-sub`);
+    const card = document.getElementById(`hero-stat-${id}`);
+    if (days == null) {
+      valEl.textContent = '—';
+      subEl.textContent = '';
+      card.classList.remove('today-flag');
+      return;
+    }
+    if (days === 0) {
+      valEl.innerHTML = `今日`;
+      card.classList.add('today-flag');
+    } else {
+      valEl.innerHTML = `${days}<span class="unit">日後</span>`;
+      card.classList.remove('today-flag');
+    }
+    subEl.textContent = `${d.getMonth()+1}/${d.getDate()} (${WD[d.getDay()]})`;
+  };
+  setStat('date', nextDate?.days, nextDate?.d);
+  setStat('salary', nextSalary?.days, nextSalary?.d);
+
+  const countEl = document.getElementById('hero-stat-count-value');
+  countEl.innerHTML = `${monthCount}`;
+  document.getElementById('hero-stat-count').classList.toggle('today-flag', monthCount >= 5);
+
+  // ジャンプ動作
+  const jumpTo = (date, key) => {
+    if (!date) return;
+    viewYear = date.getFullYear();
+    viewMonth = date.getMonth();
+    render();
+    setTimeout(() => openDaySheet(key, viewYear, viewMonth, date.getDate()), 80);
+  };
+  document.getElementById('hero-stat-date').onclick = () => nextDate && jumpTo(nextDate.d, nextDate.k);
+  document.getElementById('hero-stat-salary').onclick = () => nextSalary && jumpTo(nextSalary.d, nextSalary.k);
+  document.getElementById('hero-stat-count').onclick = () => {
+    // 今月の両方休み日の一覧を出す: 最初の日にジャンプ
+    for (let dd = 1; dd <= dim; dd++) {
+      const k = dateKey(viewYear, viewMonth, dd);
+      if (isBothOff(EVENTS[k] || [])) {
+        const d = new Date(viewYear, viewMonth, dd);
+        setTimeout(() => openDaySheet(k, viewYear, viewMonth, dd), 80);
+        return;
+      }
+    }
+  };
+}
+
 // ====================  RENDER  ====================
 function render() {
   document.getElementById('year-label').textContent = `${viewYear}`;
@@ -1355,6 +1576,7 @@ function render() {
     };
     grid.appendChild(cell);
   }
+  renderHero();
 }
 
 // ====================  DAY SHEET  ====================
