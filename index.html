@@ -385,6 +385,83 @@ header {
   padding: 0 4px;
   letter-spacing: 0;
 }
+.memo-chip {
+  position: absolute;
+  bottom: 3px;
+  right: 4px;
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(255, 122, 165, 0.35));
+  pointer-events: none;
+}
+.memo-card {
+  background: linear-gradient(135deg, #FFF6FA 0%, #FBFFF6 100%);
+  border: 1.5px solid var(--cheek);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.memo-card-title {
+  font-size: 13px;
+  font-weight: 900;
+  color: #8E3958;
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+.memo-stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.memo-stamp {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s var(--ease-spring), border-color 0.18s var(--ease-out);
+}
+.memo-stamp:active { transform: scale(0.9); }
+.memo-stamp.selected { border-color: var(--cheek-deep); background: var(--lily-pink); transform: scale(1.05); }
+.memo-templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.memo-template {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.memo-template:active { transform: scale(0.95); }
+.memo-textarea {
+  width: 100%;
+  min-height: 64px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  outline: none;
+  resize: vertical;
+  margin-bottom: 10px;
+}
+.memo-textarea:focus { border-color: var(--cheek-deep); }
+.memo-actions { display: flex; justify-content: flex-end; }
+.memo-actions .btn { width: auto; padding: 8px 18px; font-size: 13px; }
 
 /* === FAB === */
 .fab {
@@ -1151,7 +1228,7 @@ function isBothOff(builtinEvents) {
 }
 function eventsForDate(key) {
   const builtin = (EVENTS[key] || []).map(e => ({...e, _builtin: true}));
-  const custom = allCustomEvents.filter(e => e.date === key).map(e => ({
+  const custom = allCustomEvents.filter(e => e.date === key && e.type !== 'memo').map(e => ({
     id: e.id,
     person: PERSON_FROM_KEY[e.type] || '予定',
     summary: e.title,
@@ -1221,6 +1298,14 @@ function render() {
       use.setAttribute('href', '#heart');
       heart.appendChild(use);
       cell.appendChild(heart);
+      const memoRec = allCustomEvents.find(ev => ev.type === 'memo' && ev.date === key);
+      if (memoRec && (memoRec.stamp || memoRec.memo)) {
+        const chip = document.createElement('div');
+        chip.className = 'memo-chip';
+        chip.textContent = memoRec.stamp || '📝';
+        chip.title = memoRec.memo || '';
+        cell.appendChild(chip);
+      }
     }
 
     cell.appendChild(num);
@@ -1280,6 +1365,7 @@ function refreshDaySheet() {
     banner.className = 'both-off-banner';
     banner.innerHTML = `<svg><use href="#heart"/></svg><span>二人ともお休み 💗</span>`;
     body.appendChild(banner);
+    body.appendChild(buildDateMemoCard(key));
   }
   if (evs.length === 0) {
     const empty = document.createElement('div');
@@ -1320,6 +1406,72 @@ function refreshDaySheet() {
     });
   }
 }
+function findDateMemo(key) {
+  return allCustomEvents.find(e => e.type === 'memo' && e.date === key);
+}
+
+const STAMP_OPTIONS = ['💗', '🍰', '🎬', '🍣', '☕', '🌸', '🛍️', '🌊'];
+const MEMO_TEMPLATES = [
+  'カフェでまったり',
+  '映画デート',
+  'お買い物',
+  'お家でゆっくり',
+  'お出かけ',
+];
+
+function buildDateMemoCard(key) {
+  const wrap = document.createElement('div');
+  wrap.className = 'memo-card';
+  const existing = findDateMemo(key);
+  const currentStamp = existing?.stamp || '';
+  const currentMemo = existing?.memo || '';
+  wrap.innerHTML = `
+    <div class="memo-card-title">二人のひとことメモ</div>
+    <div class="memo-stamps" role="radiogroup" aria-label="スタンプを選ぶ">
+      ${STAMP_OPTIONS.map(s => `<button class="memo-stamp${s===currentStamp?' selected':''}" data-stamp="${s}" role="radio" aria-checked="${s===currentStamp}" aria-label="スタンプ ${s}">${s}</button>`).join('')}
+    </div>
+    <div class="memo-templates" aria-label="テンプレート">
+      ${MEMO_TEMPLATES.map(t => `<button class="memo-template" data-tpl="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}
+    </div>
+    <textarea class="memo-textarea" id="memo-text-${key}" placeholder="今日のデートプランを書こう…" aria-label="デートプランメモ">${escapeHtml(currentMemo)}</textarea>
+    <div class="memo-actions">
+      <button class="btn btn-primary memo-save">保存</button>
+    </div>
+  `;
+  let pickedStamp = currentStamp;
+  wrap.querySelectorAll('.memo-stamp').forEach(btn => {
+    btn.onclick = () => {
+      pickedStamp = (pickedStamp === btn.dataset.stamp) ? '' : btn.dataset.stamp;
+      wrap.querySelectorAll('.memo-stamp').forEach(b => {
+        const on = b.dataset.stamp === pickedStamp;
+        b.classList.toggle('selected', on);
+        b.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+    };
+  });
+  wrap.querySelectorAll('.memo-template').forEach(btn => {
+    btn.onclick = () => {
+      const ta = wrap.querySelector('.memo-textarea');
+      ta.value = ta.value ? ta.value + ' ' + btn.dataset.tpl : btn.dataset.tpl;
+      ta.focus();
+    };
+  });
+  wrap.querySelector('.memo-save').onclick = async () => {
+    const memo = wrap.querySelector('.memo-textarea').value.trim();
+    const stamp = pickedStamp;
+    const ex = findDateMemo(key);
+    if (!memo && !stamp) {
+      if (ex) await Storage.remove(ex.id);
+    } else {
+      const payload = { type: 'memo', date: key, memo, stamp, title: '', desc: '' };
+      if (ex) await Storage.update(ex.id, payload);
+      else await Storage.add(payload);
+    }
+    if (!firestoreDb) render();
+  };
+  return wrap;
+}
+
 function closeDaySheet() {
   document.getElementById('day-overlay').classList.remove('open');
   document.getElementById('day-overlay').setAttribute('aria-hidden', 'true');
