@@ -311,6 +311,68 @@ header {
 .date-num.sun { color: var(--cheek-deep); }
 .date-num.sat { color: var(--pond); }
 .date-num.holiday { color: var(--cheek-deep); }
+.date-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  padding-right: 2px;
+}
+.weather-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.9;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.5));
+}
+.cell.both-off .date-row .weather-icon { display: none; }
+/* Day sheet 天気カード */
+.day-weather {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, var(--water-mist) 0%, #ffffff 100%);
+  border: 1.5px solid var(--pond-light);
+  border-radius: 16px;
+  margin-bottom: 10px;
+}
+.day-weather-icon { width: 36px; height: 36px; flex-shrink: 0; }
+.day-weather-temp {
+  font-family: var(--font-en);
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--text);
+  line-height: 1.1;
+}
+.day-weather-rain {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 700;
+  margin-top: 2px;
+}
+/* お祝いアニメ */
+.celebration-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 49;
+  overflow: hidden;
+}
+.celebration-heart {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  bottom: -30px;
+  animation: floatUp 3.4s ease-out forwards;
+  filter: drop-shadow(0 2px 4px rgba(255, 122, 165, 0.5));
+}
+@keyframes floatUp {
+  0% { transform: translateY(0) rotate(0deg) scale(0.6); opacity: 0; }
+  10% { opacity: 1; transform: translateY(-40px) rotate(-12deg) scale(1); }
+  60% { transform: translateY(-50vh) rotate(15deg) scale(1.1); opacity: 0.9; }
+  100% { transform: translateY(-100vh) rotate(-8deg) scale(0.8); opacity: 0; }
+}
 
 /* 二人とも休み = ハスの葉でハート抱きしめ */
 .cell.both-off {
@@ -1037,6 +1099,60 @@ header {
     <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><polyline points="12 6 12 12 16 14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
     <symbol id="i-note" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <!-- 天気アイコン -->
+    <symbol id="w-sunny" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4.2" fill="#FCD34D" stroke="#F59E0B" stroke-width="0.5"/>
+      <g stroke="#F59E0B" stroke-width="1.7" stroke-linecap="round">
+        <line x1="12" y1="2.8" x2="12" y2="4.6"/>
+        <line x1="12" y1="19.4" x2="12" y2="21.2"/>
+        <line x1="2.8" y1="12" x2="4.6" y2="12"/>
+        <line x1="19.4" y1="12" x2="21.2" y2="12"/>
+        <line x1="5.4" y1="5.4" x2="6.7" y2="6.7"/>
+        <line x1="17.3" y1="17.3" x2="18.6" y2="18.6"/>
+        <line x1="5.4" y1="18.6" x2="6.7" y2="17.3"/>
+        <line x1="17.3" y1="6.7" x2="18.6" y2="5.4"/>
+      </g>
+    </symbol>
+    <symbol id="w-partly" viewBox="0 0 24 24">
+      <circle cx="8" cy="8" r="3.4" fill="#FCD34D" stroke="#F59E0B" stroke-width="0.4"/>
+      <g stroke="#F59E0B" stroke-width="1.2" stroke-linecap="round">
+        <line x1="8" y1="2.3" x2="8" y2="3.4"/>
+        <line x1="2.3" y1="8" x2="3.4" y2="8"/>
+        <line x1="4" y1="4" x2="4.8" y2="4.8"/>
+      </g>
+      <path d="M 7.5 16 a 4 4 0 0 1 4-4 a 4.5 4.5 0 0 1 9 0.5 a 3 3 0 0 1 -1.5 5.5 h-11 a 3.2 3.2 0 0 1 -0.5 -2 z" fill="#E2E8F0" stroke="#94A3B8" stroke-width="0.7" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="w-cloudy" viewBox="0 0 24 24">
+      <path d="M 5 16 a 4 4 0 0 1 4-4 a 4.5 4.5 0 0 1 9 0.5 a 3.2 3.2 0 0 1 -1.5 5.5 h-11 a 3.2 3.2 0 0 1 -0.5 -2 z" fill="#CBD5E1" stroke="#94A3B8" stroke-width="0.7" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="w-rainy" viewBox="0 0 24 24">
+      <path d="M 5 11 a 4 4 0 0 1 4-4 a 4.5 4.5 0 0 1 9 0.5 a 3.2 3.2 0 0 1 -1.5 5.5 h-11 a 3.2 3.2 0 0 1 -0.5 -2 z" fill="#94A3B8" stroke="#64748B" stroke-width="0.6"/>
+      <g stroke="#3B82F6" stroke-width="1.6" stroke-linecap="round">
+        <line x1="8" y1="15" x2="7" y2="18.5"/>
+        <line x1="12" y1="15" x2="11" y2="18.5"/>
+        <line x1="16" y1="15" x2="15" y2="18.5"/>
+      </g>
+    </symbol>
+    <symbol id="w-snowy" viewBox="0 0 24 24">
+      <path d="M 5 11 a 4 4 0 0 1 4-4 a 4.5 4.5 0 0 1 9 0.5 a 3.2 3.2 0 0 1 -1.5 5.5 h-11 a 3.2 3.2 0 0 1 -0.5 -2 z" fill="#E0E7EB" stroke="#94A3B8" stroke-width="0.6"/>
+      <g fill="#60A5FA">
+        <circle cx="8" cy="17" r="0.9"/>
+        <circle cx="12" cy="19" r="0.9"/>
+        <circle cx="16" cy="17" r="0.9"/>
+      </g>
+    </symbol>
+    <symbol id="w-thundery" viewBox="0 0 24 24">
+      <path d="M 5 11 a 4 4 0 0 1 4-4 a 4.5 4.5 0 0 1 9 0.5 a 3.2 3.2 0 0 1 -1.5 5.5 h-11 a 3.2 3.2 0 0 1 -0.5 -2 z" fill="#475569"/>
+      <polygon points="12,12 9,18 11.5,18 10,22 14.5,15.5 12,15.5" fill="#FCD34D" stroke="#D97706" stroke-width="0.4" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="w-foggy" viewBox="0 0 24 24">
+      <g stroke="#94A3B8" stroke-width="1.8" stroke-linecap="round">
+        <line x1="4" y1="8" x2="20" y2="8"/>
+        <line x1="6" y1="12" x2="18" y2="12"/>
+        <line x1="3" y1="16" x2="21" y2="16"/>
+        <line x1="6" y1="20" x2="18" y2="20"/>
+      </g>
+    </symbol>
   </defs>
 </svg>
 
@@ -1242,6 +1358,62 @@ const A_SHIFT_LABELS = ['A', 'Ａ', 'A番'];
 const LS_CUSTOM = 'shift-cal-custom-v2';
 const LS_FBCONFIG = 'shift-cal-fb-config';
 const LS_REMINDERS = 'shift-cal-reminder-state';
+const LS_WEATHER = 'shift-cal-weather-v1';
+const WEATHER_TTL_MS = 6 * 60 * 60 * 1000; // 6時間キャッシュ
+const NOBORIBETSU_LAT = 42.42;
+const NOBORIBETSU_LON = 141.11;
+let weatherData = {};
+
+async function fetchWeather() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(LS_WEATHER) || 'null');
+    if (cached && (Date.now() - cached.t) < WEATHER_TTL_MS) {
+      return cached.d;
+    }
+  } catch {}
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${NOBORIBETSU_LAT}&longitude=${NOBORIBETSU_LON}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo&forecast_days=16`;
+    const res = await fetch(url);
+    if (!res.ok) return {};
+    const json = await res.json();
+    const map = {};
+    const days = json.daily;
+    for (let i = 0; i < days.time.length; i++) {
+      map[days.time[i]] = {
+        code: days.weather_code[i],
+        tmax: Math.round(days.temperature_2m_max[i]),
+        tmin: Math.round(days.temperature_2m_min[i]),
+        rain: days.precipitation_probability_max[i] ?? 0,
+      };
+    }
+    try { localStorage.setItem(LS_WEATHER, JSON.stringify({ t: Date.now(), d: map })); } catch {}
+    return map;
+  } catch (e) {
+    console.warn('Weather fetch failed:', e);
+    return {};
+  }
+}
+
+function weatherIconType(code) {
+  if (code == null) return null;
+  if (code === 0) return 'sunny';
+  if (code >= 1 && code <= 3) return 'partly';
+  if (code >= 45 && code <= 48) return 'foggy';
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rainy';
+  if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return 'snowy';
+  if (code >= 95) return 'thundery';
+  return 'cloudy';
+}
+function weatherLabelJa(code) {
+  if (code == null) return '';
+  if (code === 0) return '快晴';
+  if (code <= 3) return 'くもり時々晴れ';
+  if (code <= 48) return '霧';
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return '雨';
+  if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return '雪';
+  if (code >= 95) return '雷雨';
+  return 'くもり';
+}
 
 let viewYear, viewMonth;
 let editingId = null;
@@ -1559,7 +1731,27 @@ function render() {
       }
     }
 
-    cell.appendChild(num);
+    // 天気アイコン(取得済みかつ未来16日以内の日付のみ)
+    const w = weatherData[key];
+    if (w) {
+      const dateRow = document.createElement('div');
+      dateRow.className = 'date-row';
+      dateRow.appendChild(num);
+      const wType = weatherIconType(w.code);
+      if (wType) {
+        const wsvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        wsvg.setAttribute('class', 'weather-icon');
+        wsvg.setAttribute('viewBox', '0 0 24 24');
+        const wuse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        wuse.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#w-' + wType);
+        wuse.setAttribute('href', '#w-' + wType);
+        wsvg.appendChild(wuse);
+        dateRow.appendChild(wsvg);
+      }
+      cell.appendChild(dateRow);
+    } else {
+      cell.appendChild(num);
+    }
 
     const dayEvents = eventsForDate(key).filter(e => filters[PERSON_KEY[e.person]]);
     dayEvents.slice(0, 3).forEach(e => {
@@ -1611,6 +1803,21 @@ function refreshDaySheet() {
   const key = openDayKey;
   const body = document.getElementById('day-body');
   body.innerHTML = '';
+  // 天気カード(取得できていれば最上部に)
+  const w = weatherData[key];
+  if (w) {
+    const wType = weatherIconType(w.code);
+    const wcard = document.createElement('div');
+    wcard.className = 'day-weather';
+    wcard.innerHTML = `
+      <svg class="day-weather-icon" viewBox="0 0 24 24"><use href="#w-${wType}"/></svg>
+      <div>
+        <div class="day-weather-temp">${w.tmax}° / ${w.tmin}°</div>
+        <div class="day-weather-rain">${weatherLabelJa(w.code)} ・ 降水 ${w.rain}%</div>
+      </div>
+    `;
+    body.appendChild(wcard);
+  }
   const evs = eventsForDate(key);
   const builtin = (EVENTS[key] || []);
   if (isBothOff(builtin)) {
@@ -1919,12 +2126,45 @@ async function saveSettings() {
 }
 
 // ====================  INIT  ====================
+function celebrateBothOff() {
+  // 今日が両方休みなら、ハートを画面下から舞わせる(セッション中1回のみ)
+  const today = new Date();
+  const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+  if (!isBothOff(EVENTS[todayKey] || [])) return;
+  if (sessionStorage.getItem('celebrated-' + todayKey)) return;
+  sessionStorage.setItem('celebrated-' + todayKey, '1');
+  const overlay = document.createElement('div');
+  overlay.className = 'celebration-overlay';
+  document.body.appendChild(overlay);
+  for (let i = 0; i < 9; i++) {
+    setTimeout(() => {
+      const h = document.createElement('div');
+      h.className = 'celebration-heart';
+      h.innerHTML = '<svg viewBox="0 0 24 24"><use href="#heart"/></svg>';
+      h.style.left = (Math.random() * 88 + 6) + '%';
+      overlay.appendChild(h);
+      setTimeout(() => h.remove(), 3600);
+    }, i * 220);
+  }
+  setTimeout(() => overlay.remove(), 5500);
+}
+
 async function init() {
   const today = new Date();
   viewYear = today.getFullYear();
   viewMonth = today.getMonth();
   await Storage.init();
   render();
+
+  // 天気を取得(完了したら再描画)
+  fetchWeather().then(data => {
+    weatherData = data;
+    render();
+    if (openDayKey) refreshDaySheet();
+  });
+
+  // お祝いアニメ
+  setTimeout(celebrateBothOff, 600);
 
   document.getElementById('prev').onclick = () => shift(-1);
   document.getElementById('next').onclick = () => shift(1);
