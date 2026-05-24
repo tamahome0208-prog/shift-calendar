@@ -423,12 +423,12 @@ header {
   margin-bottom: 10px;
 }
 .memo-stamp {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   border: 1.5px solid var(--border);
   background: var(--surface);
-  font-size: 20px;
+  font-size: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -439,17 +439,20 @@ header {
 .memo-templates {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 10px;
 }
 .memo-template {
-  padding: 6px 12px;
+  min-height: 44px;
+  padding: 10px 16px;
   border-radius: 999px;
   border: 1.5px solid var(--border);
   background: var(--surface);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
 }
 .memo-template:active { transform: scale(0.95); }
 .memo-textarea {
