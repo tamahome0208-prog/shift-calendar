@@ -392,6 +392,14 @@ header {
 .event.yui.t-meeting { background: linear-gradient(135deg, var(--yui-meeting) 0%, #B91C5C 110%); }
 .event.yui.t-outing { background: linear-gradient(135deg, var(--yui-outing) 0%, var(--yui) 110%); color: #7C1942; }
 .event.yui.t-outing .event-name { opacity: 0.75; color: #7C1942; }
+/* A番(8:15~17:15シフト)— 黄色 */
+.event.t-A {
+  background: linear-gradient(135deg, #FCD34D 0%, #F59E0B 100%);
+  color: #78350F;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+.event.t-A .event-name { opacity: 0.78; color: #78350F; }
+.event.t-A .event-label { color: #451A03; font-weight: 900; }
 .event.pay { background: linear-gradient(135deg, var(--leaf) 0%, var(--leaf-dark) 100%); }
 .event.custom { background: linear-gradient(135deg, var(--custom) 0%, #A372C6 110%); }
 .more-events {
@@ -1111,6 +1119,7 @@ const filters = { kouki: true, yui: true, pay: true, custom: true };
 const REST_LABELS = ['休', '希望休', '有'];
 const MEETING_LABELS = ['会議', 'MTG', 'ミーティング'];
 const OUTING_LABELS = ['出店'];
+const A_SHIFT_LABELS = ['A', 'Ａ', 'A番'];
 const LS_CUSTOM = 'shift-cal-custom-v2';
 const LS_FBCONFIG = 'shift-cal-fb-config';
 const LS_REMINDERS = 'shift-cal-reminder-state';
@@ -1233,6 +1242,7 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function eventTypeClass(summary) {
+  if (A_SHIFT_LABELS.includes(summary)) return 't-A';
   if (MEETING_LABELS.includes(summary)) return 't-meeting';
   if (OUTING_LABELS.includes(summary)) return 't-outing';
   return '';
@@ -1803,6 +1813,41 @@ HOLIDAYS_2026 = [
 ]
 
 
+import datetime as _dt
+
+# PDF由来のA番(8:15~17:15シフト)。Excelには未収録のためここで補う。
+# 同じファイル名のPDFがあれば extract_a_shifts_from_pdf() で自動上書き
+A_SHIFTS_FALLBACK = {
+    "こうき": [(2026, 6, d) for d in (2, 16, 19, 28)],
+    "ゆい":   [(2026, 6, d) for d in (8, 13, 15, 24)],
+}
+
+
+def extract_a_shifts_from_pdf(pdf_path):
+    """PDFのシフト表からA番の日付を抽出。失敗時は None を返す。"""
+    try:
+        import pdfplumber
+    except ImportError:
+        return None
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            t = pdf.pages[0].extract_tables()[0]
+        kouki_col = 2  # 安中
+        yui_col = 8    # 恩田
+        kouki, yui = [], []
+        for row in t:
+            if row[0] and str(row[0]).isdigit():
+                d = int(row[0])
+                if (row[kouki_col] or '').strip() in ('A', 'Ａ'):
+                    kouki.append(d)
+                if (row[yui_col] or '').strip() in ('A', 'Ａ'):
+                    yui.append(d)
+        return {"こうき": [(2026, 6, d) for d in kouki],
+                "ゆい":   [(2026, 6, d) for d in yui]}
+    except Exception:
+        return None
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python build.py <xlsx_path>")
@@ -1810,6 +1855,13 @@ def main():
     xlsx = sys.argv[1]
     shift_events, year = parse_shift(xlsx)
     salary_events = build_salary_events(year)
+
+    # 対応するPDFがあればA番を取得
+    pdf_path = os.path.splitext(xlsx)[0] + ".pdf"
+    a_shifts = extract_a_shifts_from_pdf(pdf_path) if os.path.exists(pdf_path) else None
+    if a_shifts is None:
+        a_shifts = A_SHIFTS_FALLBACK
+    print(f"  A番: こうき={[d for _,_,d in a_shifts.get('こうき', [])]}, ゆい={[d for _,_,d in a_shifts.get('ゆい', [])]}")
 
     by_date = {}
     for name, d, label in shift_events:
@@ -1819,6 +1871,17 @@ def main():
     for d, title, desc in salary_events:
         k = d.strftime("%Y-%m-%d")
         by_date.setdefault(k, []).append({"person": "給料", "summary": title, "desc": desc})
+
+    # A番をイベントとして追加(同日に「会議」等がある場合はA番を先頭に来るよう挿入)
+    for person, dates in a_shifts.items():
+        for y, m, dnum in dates:
+            d = _dt.date(y, m, dnum)
+            k = d.strftime("%Y-%m-%d")
+            existing = by_date.setdefault(k, [])
+            # 既に A 追加済みかチェック
+            if any(e.get("person") == person and e.get("summary") == "A" for e in existing):
+                continue
+            existing.insert(0, {"person": person, "summary": "A"})
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     html = TEMPLATE.replace("__EVENTS_JSON__", json.dumps(by_date, ensure_ascii=False))
