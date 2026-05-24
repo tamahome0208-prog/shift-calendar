@@ -1081,8 +1081,18 @@ const Storage = {
   async initFirebase(cfg) {
     setSync('syncing');
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js');
+    const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
     const { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, setDoc, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const app = initializeApp(cfg);
+    // 匿名認証: ルールが request.auth != null を要求する場合に必要
+    try {
+      const auth = getAuth(app);
+      if (!auth.currentUser) {
+        await signInAnonymously(auth);
+      }
+    } catch (e) {
+      console.warn('Anonymous sign-in failed, continuing without auth', e);
+    }
     firestoreDb = getFirestore(app);
     this._coll = collection(firestoreDb, 'events');
     this._addDoc = addDoc; this._deleteDoc = deleteDoc; this._doc = doc; this._setDoc = setDoc;
