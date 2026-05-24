@@ -18,7 +18,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#fdfffc">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1382,6 +1382,7 @@ function openDaySheet(key, y, m, d) {
   refreshDaySheet();
   document.getElementById('day-overlay').classList.add('open');
   document.getElementById('day-overlay').setAttribute('aria-hidden', 'false');
+  lockBodyScroll('day');
 }
 function refreshDaySheet() {
   if (!openDayKey) return;
@@ -1506,6 +1507,26 @@ function closeDaySheet() {
   document.getElementById('day-overlay').classList.remove('open');
   document.getElementById('day-overlay').setAttribute('aria-hidden', 'true');
   openDayKey = null;
+  releaseBodyScroll('day');
+}
+
+// === Sheet helpers (scroll lock + ESC) ===
+const _lockedSheets = new Set();
+function lockBodyScroll(tag) {
+  _lockedSheets.add(tag);
+  document.body.style.overflow = 'hidden';
+}
+function releaseBodyScroll(tag) {
+  _lockedSheets.delete(tag);
+  if (_lockedSheets.size === 0) document.body.style.overflow = '';
+}
+function topMostOpenSheet() {
+  const ids = ['form-overlay', 'settings-overlay', 'day-overlay'];
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('open')) return id;
+  }
+  return null;
 }
 
 // ====================  FORM  ====================
@@ -1538,12 +1559,14 @@ function openForm(id, dateKeyHint) {
   if (end) document.getElementById('f-end').value = end;
   document.getElementById('form-overlay').classList.add('open');
   document.getElementById('form-overlay').setAttribute('aria-hidden', 'false');
+  lockBodyScroll('form');
   setTimeout(() => document.getElementById('f-title').focus(), 300);
 }
 function closeForm() {
   document.getElementById('form-overlay').classList.remove('open');
   document.getElementById('form-overlay').setAttribute('aria-hidden', 'true');
   editingId = null;
+  releaseBodyScroll('form');
 }
 async function saveForm() {
   const date = document.getElementById('f-date').value;
@@ -1617,10 +1640,12 @@ function openSettings() {
   updateNotifStatus();
   document.getElementById('settings-overlay').classList.add('open');
   document.getElementById('settings-overlay').setAttribute('aria-hidden', 'false');
+  lockBodyScroll('settings');
 }
 function closeSettings() {
   document.getElementById('settings-overlay').classList.remove('open');
   document.getElementById('settings-overlay').setAttribute('aria-hidden', 'true');
+  releaseBodyScroll('settings');
 }
 function updateNotifStatus() {
   const status = document.getElementById('notif-status');
@@ -1759,6 +1784,14 @@ async function init() {
     }
     swipeStart = null;
   }, { passive: true });
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape') return;
+    const top = topMostOpenSheet();
+    if (top === 'form-overlay') closeForm();
+    else if (top === 'settings-overlay') closeSettings();
+    else if (top === 'day-overlay') closeDaySheet();
+  });
 
   scheduleReminders();
 }
