@@ -1190,6 +1190,7 @@ const Storage = {
         setSync('online');
         render();
         if (openDayKey) refreshDaySheet();
+        if (typeof scheduleReminders === 'function') scheduleReminders();
       },
       err => {
         console.warn('Firestore error, using local cache', err);
