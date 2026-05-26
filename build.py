@@ -494,34 +494,38 @@ header > * { position: relative; z-index: 1; }
 }
 
 .event {
-  padding: 4px 4px 4px 3px;
+  padding: 3px 2px 3px 2px;
   border-radius: 7px;
   color: white;
   line-height: 1.05;
   min-width: 0;
   max-width: 100%;
-  display: grid;
-  grid-template-columns: 12px 1fr;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 3px;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.05em;
   overflow: hidden;
-  text-align: left;
+  text-align: center;
   transition: transform 0.18s var(--ease-spring);
   position: relative;
 }
 .event-sticker {
-  width: 12px;
-  height: 12px;
-  flex-shrink: 0;
-  opacity: 0.95;
-  filter: drop-shadow(0 1px 0 rgba(255,255,255,0.4));
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 10px;
+  height: 10px;
+  opacity: 0.92;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.18));
+  pointer-events: none;
+  z-index: 1;
 }
 .event-text {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  width: 100%;
   min-width: 0;
-  align-items: flex-start;
 }
 .event:active { transform: scale(0.92); }
 .event .event-name {
