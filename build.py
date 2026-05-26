@@ -1182,6 +1182,45 @@ header {
   color: var(--muted); letter-spacing: 0.06em;
   margin-bottom: 4px; display: block;
 }
+.year-grid { display: flex; flex-direction: column; gap: 6px; }
+.year-month-row { display: flex; align-items: center; gap: 6px; }
+.year-month-label {
+  font-family: var(--font-en); font-size: 10px; font-weight: 800;
+  color: var(--muted); letter-spacing: 0.06em;
+  width: 26px; flex-shrink: 0;
+}
+.year-cells { display: grid; grid-template-columns: repeat(31, 1fr); gap: 2px; flex: 1; }
+.year-cell {
+  aspect-ratio: 1;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+}
+.year-cell.empty { visibility: hidden; cursor: default; }
+.year-cell.full { background: var(--cheek-deep); border-color: var(--cheek-deep); }
+.year-cell.half { background: var(--cheek); border-color: var(--cheek); }
+.year-cell.a::after {
+  content: ''; position: absolute; inset: -1px;
+  border: 1.5px solid #F59E0B; border-radius: 3px;
+}
+.year-cell.pay::before {
+  content: ''; position: absolute; bottom: 1px; right: 1px;
+  width: 3px; height: 3px;
+  background: var(--leaf); border-radius: 50%;
+}
+.year-legend {
+  display: flex; gap: 14px; flex-wrap: wrap; justify-content: center;
+  margin-top: 16px; font-size: 11px; font-weight: 700; color: var(--muted);
+}
+.year-leg { display: inline-flex; align-items: center; gap: 5px; }
+.year-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.year-swatch.full { background: var(--cheek-deep); }
+.year-swatch.half { background: var(--cheek); }
+.year-swatch.a { background: white; border: 1.5px solid #F59E0B; }
+.year-swatch.pay { background: var(--leaf); border-radius: 50%; }
 </style>
 </head>
 <body>
@@ -1236,6 +1275,7 @@ header {
     <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2" fill="none"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2" fill="none"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2" fill="none"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2" fill="none"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><polyline points="12 6 12 12 16 14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
     <symbol id="i-note" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -1320,6 +1360,10 @@ header {
     <div class="chip active" data-key="yui" role="switch" aria-checked="true" tabindex="0"><span class="dot"></span>ゆい</div>
     <div class="chip active" data-key="pay" role="switch" aria-checked="true" tabindex="0"><span class="dot"></span>給料日</div>
     <div class="chip active" data-key="custom" role="switch" aria-checked="true" tabindex="0"><span class="dot"></span>予定</div>
+    <button class="chip" id="year-btn" type="button" aria-label="年間ビュー" style="background:var(--surface);color:var(--text-2);border-color:var(--border);">
+      <svg style="width:14px;height:14px;"><use href="#i-grid"/></svg>
+      年
+    </button>
   </div>
 </header>
 
@@ -1522,6 +1566,30 @@ header {
       <div class="btn-row">
         <button class="btn btn-secondary" id="confirm-cancel">キャンセル</button>
         <button class="btn btn-danger" id="confirm-ok">削除する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Year View Sheet -->
+<div class="sheet-overlay" id="year-overlay" role="dialog" aria-modal="true" aria-labelledby="year-title">
+  <div class="sheet" style="max-height: 92vh;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="icon-btn" id="year-prev" aria-label="前年" style="width:32px;height:32px;"><svg style="width:16px;height:16px;"><use href="#i-left"/></svg></button>
+        <div class="sheet-title" id="year-title">2026年</div>
+        <button class="icon-btn" id="year-next" aria-label="翌年" style="width:32px;height:32px;"><svg style="width:16px;height:16px;"><use href="#i-right"/></svg></button>
+      </div>
+      <button class="icon-btn" id="year-close" aria-label="閉じる"><svg><use href="#i-x"/></svg></button>
+    </div>
+    <div class="sheet-body">
+      <div class="year-grid" id="year-grid"></div>
+      <div class="year-legend">
+        <span class="year-leg"><span class="year-swatch full"></span>両方休み</span>
+        <span class="year-leg"><span class="year-swatch half"></span>片方休み</span>
+        <span class="year-leg"><span class="year-swatch a"></span>A番</span>
+        <span class="year-leg"><span class="year-swatch pay"></span>給料日</span>
       </div>
     </div>
   </div>
@@ -1950,6 +2018,65 @@ function renderRecall() {
     el.innerHTML = `<span class="recall-item-when">${it.when}</span>${escapeHtml(it.txt)}`;
     body.appendChild(el);
   });
+}
+
+let yearViewYear = null;
+function openYearView() {
+  yearViewYear = viewYear;
+  renderYearView();
+  document.getElementById('year-overlay').classList.add('open');
+  if (typeof lockBodyScroll === 'function') lockBodyScroll('year-overlay');
+}
+function closeYearView() {
+  document.getElementById('year-overlay').classList.remove('open');
+  if (typeof releaseBodyScroll === 'function') releaseBodyScroll('year-overlay');
+}
+function renderYearView() {
+  if (yearViewYear == null) yearViewYear = viewYear;
+  document.getElementById('year-title').textContent = `${yearViewYear}年`;
+  const grid = document.getElementById('year-grid');
+  grid.innerHTML = '';
+  const monthShort = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  for (let m = 0; m < 12; m++) {
+    const row = document.createElement('div');
+    row.className = 'year-month-row';
+    const lbl = document.createElement('div');
+    lbl.className = 'year-month-label';
+    lbl.textContent = monthShort[m];
+    row.appendChild(lbl);
+    const cells = document.createElement('div');
+    cells.className = 'year-cells';
+    const dim = new Date(yearViewYear, m + 1, 0).getDate();
+    for (let d = 1; d <= 31; d++) {
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'year-cell';
+      if (d > dim) { cell.classList.add('empty'); cells.appendChild(cell); continue; }
+      const key = dateKey(yearViewYear, m, d);
+      const builtin = EVENTS[key] || [];
+      const hasA = builtin.some(e => A_SHIFT_LABELS.includes(e.summary));
+      const hasPay = builtin.some(e => e.person === '給料');
+      if (isBothOff(builtin)) cell.classList.add('full');
+      else {
+        const kHas = builtin.some(e => e.person === 'こうき' && REST_LABELS.includes(e.summary));
+        const yHas = builtin.some(e => e.person === 'ゆい' && REST_LABELS.includes(e.summary));
+        if (kHas || yHas) cell.classList.add('half');
+      }
+      if (hasA) cell.classList.add('a');
+      if (hasPay) cell.classList.add('pay');
+      cell.setAttribute('aria-label', `${m+1}月${d}日`);
+      cell.onclick = () => {
+        haptic(10);
+        closeYearView();
+        viewYear = yearViewYear; viewMonth = m;
+        render();
+        setTimeout(() => openDaySheet(key, viewYear, viewMonth, d), 120);
+      };
+      cells.appendChild(cell);
+    }
+    row.appendChild(cells);
+    grid.appendChild(row);
+  }
 }
 
 // ====================  RENDER  ====================
@@ -2590,6 +2717,14 @@ async function init() {
     document.getElementById('recall-body').hidden = expanded;
   };
 
+  document.getElementById('year-btn').onclick = openYearView;
+  document.getElementById('year-close').onclick = closeYearView;
+  document.getElementById('year-overlay').onclick = e => {
+    if (e.target.id === 'year-overlay') closeYearView();
+  };
+  document.getElementById('year-prev').onclick = () => { yearViewYear--; renderYearView(); };
+  document.getElementById('year-next').onclick = () => { yearViewYear++; renderYearView(); };
+
   // Swipe gestures for month nav
   let swipeStart = null;
   document.body.addEventListener('touchstart', e => {
@@ -2610,7 +2745,8 @@ async function init() {
 
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape') return;
-    if (document.getElementById('confirm-overlay').classList.contains('open')) { _resolveConfirm(false); return; }
+    if (document.getElementById('year-overlay').classList.contains('open')) { closeYearView(); return; }
+    else if (document.getElementById('confirm-overlay').classList.contains('open')) { _resolveConfirm(false); return; }
     const top = topMostOpenSheet();
     if (top === 'form-overlay') closeForm();
     else if (top === 'settings-overlay') closeSettings();
