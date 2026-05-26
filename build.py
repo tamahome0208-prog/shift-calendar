@@ -460,6 +460,35 @@ header > * { position: relative; z-index: 1; }
   100% { transform: translateY(-100vh) rotate(-8deg) scale(0.8); opacity: 0; }
 }
 
+/* 保存マイクロアニメ */
+.save-toast {
+  position: fixed;
+  bottom: 88px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--mint, #d4edda);
+  color: var(--text-1, #3a3a3a);
+  border: 1.5px solid var(--sage, #8fbc8f);
+  border-radius: 40px;
+  padding: 10px 22px 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0,100,60,0.13);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 9999;
+  animation: saveToastIn 1.8s ease forwards;
+}
+@keyframes saveToastIn {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  75%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
 /* 二人とも休み = ハスの葉でハート抱きしめ */
 .cell.both-off {
   background:
@@ -2526,6 +2555,13 @@ async function saveForm() {
     await Storage.add(event);
   }
   haptic(15);
+  (function showSaveToast() {
+    const t = document.createElement('div');
+    t.className = 'save-toast';
+    t.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>保存しました';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 1900);
+  })();
   closeForm();
   scheduleReminders();
   const [y, mm, d] = date.split('-').map(Number);
@@ -2650,7 +2686,7 @@ async function saveSettings() {
       localStorage.setItem(LS_FBCONFIG, JSON.stringify(cfg));
       await Storage.initFirebase(cfg);
     } catch (e) {
-      alert('Firebase configの形式エラー: ' + e.message);
+      await showConfirm('設定エラー', 'Firebase configの形式エラー: ' + e.message, '閉じる');
       return;
     }
   } else {
@@ -2735,6 +2771,7 @@ async function init() {
     m.classList.add('hop');
   };
   document.querySelectorAll('.chip').forEach(c => {
+    if (!c.dataset.key) return;
     const toggle = () => {
       filters[c.dataset.key] = !filters[c.dataset.key];
       c.classList.toggle('active');
