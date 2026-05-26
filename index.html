@@ -1408,7 +1408,7 @@ header {
 
 <script type="module">
 const EVENTS = {"2026-06-01": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "希望休"}], "2026-06-02": [{"person": "こうき", "summary": "A"}, {"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "MTG"}], "2026-06-04": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-05": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-06": [{"person": "こうき", "summary": "出店"}], "2026-06-07": [{"person": "こうき", "summary": "出店"}], "2026-06-08": [{"person": "ゆい", "summary": "A"}, {"person": "こうき", "summary": "休"}], "2026-06-09": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-10": [{"person": "こうき", "summary": "出店"}, {"person": "ゆい", "summary": "休"}], "2026-06-11": [{"person": "こうき", "summary": "休"}], "2026-06-12": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-13": [{"person": "ゆい", "summary": "A"}, {"person": "こうき", "summary": "出店"}], "2026-06-14": [{"person": "こうき", "summary": "出店"}], "2026-06-15": [{"person": "ゆい", "summary": "A"}, {"person": "こうき", "summary": "会議"}], "2026-06-16": [{"person": "こうき", "summary": "A"}, {"person": "ゆい", "summary": "休"}], "2026-06-17": [{"person": "こうき", "summary": "休"}], "2026-06-18": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-19": [{"person": "こうき", "summary": "A"}, {"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "出店"}, {"person": "給料", "summary": "給料日", "desc": "6月分給与"}], "2026-06-20": [{"person": "こうき", "summary": "出店"}], "2026-06-21": [{"person": "こうき", "summary": "出店"}], "2026-06-22": [{"person": "こうき", "summary": "休"}], "2026-06-23": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-24": [{"person": "ゆい", "summary": "A"}, {"person": "こうき", "summary": "会議"}], "2026-06-25": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "有"}], "2026-06-26": [{"person": "こうき", "summary": "休"}], "2026-06-27": [{"person": "こうき", "summary": "出店"}, {"person": "ゆい", "summary": "希望休"}], "2026-06-28": [{"person": "こうき", "summary": "A"}, {"person": "ゆい", "summary": "出店"}], "2026-06-29": [{"person": "こうき", "summary": "有"}], "2026-06-30": [{"person": "こうき", "summary": "会議"}], "2026-01-20": [{"person": "給料", "summary": "給料日", "desc": "1月分給与"}], "2026-02-20": [{"person": "給料", "summary": "給料日", "desc": "2月分給与"}], "2026-03-19": [{"person": "給料", "summary": "給料日", "desc": "3月分給与"}], "2026-04-20": [{"person": "給料", "summary": "給料日", "desc": "4月分給与"}], "2026-05-20": [{"person": "給料", "summary": "給料日", "desc": "5月分給与"}], "2026-07-17": [{"person": "給料", "summary": "給料日", "desc": "7月分給与"}], "2026-08-20": [{"person": "給料", "summary": "給料日", "desc": "8月分給与"}], "2026-09-18": [{"person": "給料", "summary": "給料日", "desc": "9月分給与"}], "2026-10-20": [{"person": "給料", "summary": "給料日", "desc": "10月分給与"}], "2026-11-20": [{"person": "給料", "summary": "給料日", "desc": "11月分給与"}], "2026-12-18": [{"person": "給料", "summary": "給料日", "desc": "12月分給与"}], "2026-07-10": [{"person": "給料", "summary": "ボーナス", "desc": "ボーナス(7/10)"}], "2026-12-10": [{"person": "給料", "summary": "ボーナス", "desc": "ボーナス(12/10)"}]};
-const HOLIDAYS = ["2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20", "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06", "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-23", "2026-10-12", "2026-11-03", "2026-11-23"];
+const HOLIDAYS_BY_YEAR = {"2025": ["2025-01-01", "2025-01-13", "2025-02-11", "2025-02-23", "2025-02-24", "2025-03-20", "2025-04-29", "2025-05-03", "2025-05-04", "2025-05-05", "2025-05-06", "2025-07-21", "2025-08-11", "2025-09-15", "2025-09-23", "2025-10-13", "2025-11-03", "2025-11-23", "2025-11-24"], "2026": ["2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20", "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06", "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-23", "2026-10-12", "2026-11-03", "2026-11-23"], "2027": ["2027-01-01", "2027-01-11", "2027-02-11", "2027-02-23", "2027-03-21", "2027-03-22", "2027-04-29", "2027-05-03", "2027-05-04", "2027-05-05", "2027-07-19", "2027-08-11", "2027-09-20", "2027-09-23", "2027-10-11", "2027-11-03", "2027-11-23"], "2028": ["2028-01-01", "2028-01-10", "2028-02-11", "2028-02-23", "2028-03-20", "2028-04-29", "2028-05-03", "2028-05-04", "2028-05-05", "2028-07-17", "2028-08-11", "2028-09-18", "2028-09-22", "2028-10-09", "2028-11-03", "2028-11-23"]};
 
 const PERSON_KEY = {"こうき":"kouki","ゆい":"yui","給料":"pay","予定":"custom"};
 const PERSON_FROM_KEY = {kouki:"こうき", yui:"ゆい", pay:"給料", custom:"予定"};
@@ -1592,6 +1592,9 @@ function setSync(state) {
 function pad(n) { return String(n).padStart(2,'0'); }
 function dateKey(y,m,d) { return `${y}-${pad(m+1)}-${pad(d)}`; }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function haptic(pattern) {
+  try { if (navigator.vibrate) navigator.vibrate(pattern); } catch {}
+}
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -1768,7 +1771,7 @@ function render() {
     num.className = 'date-num';
     if (weekday === 0) num.classList.add('sun');
     if (weekday === 6) num.classList.add('sat');
-    if (HOLIDAYS.includes(key)) num.classList.add('holiday');
+    if ((HOLIDAYS_BY_YEAR[y] || []).includes(key)) num.classList.add('holiday');
     num.textContent = d;
     if (key === todayKey) cell.classList.add('today');
 
@@ -1837,7 +1840,7 @@ function render() {
     cell.setAttribute('role', 'button');
     cell.setAttribute('tabindex', '0');
     cell.setAttribute('aria-label', `${y}年${m+1}月${d}日`);
-    cell.onclick = () => openDaySheet(key, y, m, d);
+    cell.onclick = () => { haptic(15); openDaySheet(key, y, m, d); };
     cell.onkeydown = (ev) => {
       if (ev.key === 'Enter' || ev.key === ' ') {
         ev.preventDefault();
@@ -2075,6 +2078,7 @@ async function saveForm() {
   } else {
     await Storage.add(event);
   }
+  haptic(15);
   closeForm();
   scheduleReminders();
   const [y, mm, d] = date.split('-').map(Number);
@@ -2084,6 +2088,7 @@ async function saveForm() {
 }
 async function deleteForm() {
   if (!editingId) return;
+  haptic([40, 30, 40]);
   if (!confirm('この予定を削除します。よろしいですか?')) return;
   const date = document.getElementById('f-date').value;
   await Storage.remove(editingId);

@@ -1424,7 +1424,7 @@ header {
 
 <script type="module">
 const EVENTS = __EVENTS_JSON__;
-const HOLIDAYS = __HOLIDAYS_JSON__;
+const HOLIDAYS_BY_YEAR = __HOLIDAYS_JSON__;
 
 const PERSON_KEY = {"こうき":"kouki","ゆい":"yui","給料":"pay","予定":"custom"};
 const PERSON_FROM_KEY = {kouki:"こうき", yui:"ゆい", pay:"給料", custom:"予定"};
@@ -1608,6 +1608,9 @@ function setSync(state) {
 function pad(n) { return String(n).padStart(2,'0'); }
 function dateKey(y,m,d) { return `${y}-${pad(m+1)}-${pad(d)}`; }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function haptic(pattern) {
+  try { if (navigator.vibrate) navigator.vibrate(pattern); } catch {}
+}
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -1784,7 +1787,7 @@ function render() {
     num.className = 'date-num';
     if (weekday === 0) num.classList.add('sun');
     if (weekday === 6) num.classList.add('sat');
-    if (HOLIDAYS.includes(key)) num.classList.add('holiday');
+    if ((HOLIDAYS_BY_YEAR[y] || []).includes(key)) num.classList.add('holiday');
     num.textContent = d;
     if (key === todayKey) cell.classList.add('today');
 
@@ -1853,7 +1856,7 @@ function render() {
     cell.setAttribute('role', 'button');
     cell.setAttribute('tabindex', '0');
     cell.setAttribute('aria-label', `${y}年${m+1}月${d}日`);
-    cell.onclick = () => openDaySheet(key, y, m, d);
+    cell.onclick = () => { haptic(15); openDaySheet(key, y, m, d); };
     cell.onkeydown = (ev) => {
       if (ev.key === 'Enter' || ev.key === ' ') {
         ev.preventDefault();
@@ -2091,6 +2094,7 @@ async function saveForm() {
   } else {
     await Storage.add(event);
   }
+  haptic(15);
   closeForm();
   scheduleReminders();
   const [y, mm, d] = date.split('-').map(Number);
@@ -2100,6 +2104,7 @@ async function saveForm() {
 }
 async function deleteForm() {
   if (!editingId) return;
+  haptic([40, 30, 40]);
   if (!confirm('この予定を削除します。よろしいですか?')) return;
   const date = document.getElementById('f-date').value;
   await Storage.remove(editingId);
@@ -2366,10 +2371,10 @@ MANIFEST = {
     ],
 }
 
-SW = """const CACHE = 'shift-cal-v4';
+SW = """const CACHE = 'shift-cal-__BUILD_TS__';
 self.addEventListener('install', e => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./','./manifest.json'])));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./','./index.html','./manifest.json','./icon.png'])));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(
@@ -2382,12 +2387,32 @@ self.addEventListener('fetch', e => {
 });
 """
 
-HOLIDAYS_2026 = [
-    "2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20",
-    "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06",
-    "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-23",
-    "2026-10-12", "2026-11-03", "2026-11-23",
-]
+HOLIDAYS_BY_YEAR = {
+    2025: [
+        "2025-01-01", "2025-01-13", "2025-02-11", "2025-02-23", "2025-02-24",
+        "2025-03-20", "2025-04-29", "2025-05-03", "2025-05-04", "2025-05-05",
+        "2025-05-06", "2025-07-21", "2025-08-11", "2025-09-15", "2025-09-23",
+        "2025-10-13", "2025-11-03", "2025-11-23", "2025-11-24",
+    ],
+    2026: [
+        "2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20",
+        "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06",
+        "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-23",
+        "2026-10-12", "2026-11-03", "2026-11-23",
+    ],
+    2027: [
+        "2027-01-01", "2027-01-11", "2027-02-11", "2027-02-23", "2027-03-21",
+        "2027-03-22", "2027-04-29", "2027-05-03", "2027-05-04", "2027-05-05",
+        "2027-07-19", "2027-08-11", "2027-09-20", "2027-09-23",
+        "2027-10-11", "2027-11-03", "2027-11-23",
+    ],
+    2028: [
+        "2028-01-01", "2028-01-10", "2028-02-11", "2028-02-23", "2028-03-20",
+        "2028-04-29", "2028-05-03", "2028-05-04", "2028-05-05",
+        "2028-07-17", "2028-08-11", "2028-09-18", "2028-09-22",
+        "2028-10-09", "2028-11-03", "2028-11-23",
+    ],
+}
 
 
 import datetime as _dt
@@ -2462,14 +2487,16 @@ def main():
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     html = TEMPLATE.replace("__EVENTS_JSON__", json.dumps(by_date, ensure_ascii=False))
-    html = html.replace("__HOLIDAYS_JSON__", json.dumps(HOLIDAYS_2026))
+    html = html.replace("__HOLIDAYS_JSON__", json.dumps(HOLIDAYS_BY_YEAR))
 
     with open(os.path.join(OUTPUT_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html)
     with open(os.path.join(OUTPUT_DIR, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(MANIFEST, f, ensure_ascii=False, indent=2)
+    build_ts = _dt.datetime.now().strftime("%Y%m%d%H%M%S")
+    sw_text = SW.replace("__BUILD_TS__", build_ts)
     with open(os.path.join(OUTPUT_DIR, "sw.js"), "w", encoding="utf-8") as f:
-        f.write(SW)
+        f.write(sw_text)
 
     total_events = sum(len(v) for v in by_date.values())
     print(f"出力先: {OUTPUT_DIR}")

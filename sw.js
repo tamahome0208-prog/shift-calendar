@@ -1,7 +1,7 @@
-const CACHE = 'shift-cal-v4';
+const CACHE = 'shift-cal-20260526154153';
 self.addEventListener('install', e => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./','./manifest.json'])));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./','./index.html','./manifest.json','./icon.png'])));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(
