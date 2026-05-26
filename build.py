@@ -19,7 +19,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#fdfffc">
+<meta name="theme-color" content="#FFF8F0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="シフト">
@@ -32,53 +32,56 @@ TEMPLATE = r"""<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  /* ケロッピー本物カラー */
-  --leaf: #7CC243;
-  --leaf-dark: #5BA528;
-  --leaf-deep: #3F7B14;
+  /* Keroppi-vivid Cozy Cream パレット */
+  --leaf: #84CC16;
+  --leaf-dark: #65A30D;
+  --leaf-deep: #3F6212;
   --pond: #5AA6DC;
   --pond-dark: #2E7CB9;
   --pond-light: #B8DCF0;
-  --cheek: #FFB7D3;
-  --cheek-deep: #FF7AA5;
+  --cheek: #FFAFC5;
+  --cheek-deep: #F764A2;
   --belly: #FDF6D8;
   --lily-pink: #FFD9E6;
   --mint-mist: #ECF8E3;
   --water-mist: #E8F4FB;
+  --peach: #FFB892;
+  --peach-deep: #FF8E5C;
+  --sunshine: #FBBF24;
 
-  /* 機能色 - Calm Canvas */
-  --bg: #FBFBF7;            /* 暖かみのあるオフホワイト */
-  --bg-2: #F5F4EE;
+  /* 機能色 - Cozy Cream Canvas */
+  --bg: #FFF8F0;
+  --bg-2: #FFEFDF;
   --surface: #ffffff;
-  --surface-soft: #FAFAF5;
-  --surface-2: #F0EFE8;
-  --text: #0F1A04;          /* 深い緑黒 */
-  --text-2: #2A3A18;
-  --muted: #7B8170;
-  --muted-2: #9CA08F;
-  --border: #EDEBE2;        /* 控えめなボーダー */
-  --border-strong: #D4D1C4;
-  --hairline: rgba(15, 26, 4, 0.06);
+  --surface-soft: #FFFAEF;
+  --surface-2: #FFEAD8;
+  --text: #1F1A0F;
+  --text-2: #3F341F;
+  --muted: #8A7860;
+  --muted-2: #A89878;
+  --border: #F8E4CC;
+  --border-strong: #E8C8A0;
+  --hairline: rgba(120, 70, 20, 0.08);
 
   --kouki: #5AA6DC;
   --kouki-meeting: #2E7CB9;
   --kouki-outing: #92C9E8;
   --kouki-soft: #E8F4FB;
-  --yui: #FF7AA5;
-  --yui-meeting: #E84B83;
+  --yui: #F764A2;
+  --yui-meeting: #DC4A88;
   --yui-outing: #FFBED4;
   --yui-soft: #FFE9F1;
-  --pay: #5BA528;
+  --pay: #65A30D;
   --pay-soft: #ECF8E3;
   --custom: #C58AE0;
   --custom-soft: #F4E8FB;
 
-  --shadow-xs: 0 1px 1px rgba(15, 26, 4, 0.04);
-  --shadow-sm: 0 1px 3px rgba(15, 26, 4, 0.05), 0 1px 2px rgba(15, 26, 4, 0.03);
-  --shadow-md: 0 4px 12px rgba(15, 26, 4, 0.06), 0 2px 4px rgba(15, 26, 4, 0.04);
-  --shadow-lg: 0 24px 48px rgba(15, 26, 4, 0.12), 0 8px 16px rgba(15, 26, 4, 0.05);
-  --shadow-pink: 0 4px 16px rgba(255, 122, 165, 0.28);
-  --shadow-leaf: 0 4px 16px rgba(91, 165, 40, 0.25);
+  --shadow-xs: 0 1px 1px rgba(120, 70, 20, 0.05);
+  --shadow-sm: 0 2px 6px rgba(120, 70, 20, 0.06), 0 1px 2px rgba(120, 70, 20, 0.04);
+  --shadow-md: 0 4px 12px rgba(120, 70, 20, 0.08), 0 2px 4px rgba(120, 70, 20, 0.05);
+  --shadow-lg: 0 24px 48px rgba(120, 70, 20, 0.15), 0 8px 16px rgba(120, 70, 20, 0.06);
+  --shadow-pink: 0 4px 16px rgba(247, 100, 162, 0.3);
+  --shadow-leaf: 0 4px 16px rgba(132, 204, 22, 0.28);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -105,8 +108,8 @@ body {
   padding-bottom: calc(var(--safe-bottom) + 96px);
   letter-spacing: 0.005em;
   background-image:
-    radial-gradient(circle at 100% 0%, rgba(124, 194, 67, 0.04) 0%, transparent 36%),
-    radial-gradient(circle at 0% 100%, rgba(255, 122, 165, 0.03) 0%, transparent 40%);
+    radial-gradient(circle at 100% 0%, rgba(255, 184, 146, 0.08) 0%, transparent 36%),
+    radial-gradient(circle at 0% 100%, rgba(247, 100, 162, 0.04) 0%, transparent 40%);
   background-attachment: fixed;
 }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
@@ -117,7 +120,7 @@ input, textarea, select { font-family: inherit; }
 
 /* === HEADER === */
 header {
-  background: rgba(251, 251, 247, 0.78);
+  background: rgba(255, 248, 240, 0.78);
   backdrop-filter: saturate(180%) blur(30px);
   -webkit-backdrop-filter: saturate(180%) blur(30px);
   padding: calc(var(--safe-top) + 16px) 18px 14px;
@@ -2777,8 +2780,8 @@ MANIFEST = {
     "short_name": "シフト",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#fdfffc",
-    "theme_color": "#fdfffc",
+    "background_color": "#FFF8F0",
+    "theme_color": "#FFF8F0",
     "orientation": "portrait",
     "icons": [
         {"src": "icon.png", "sizes": "192x192", "type": "image/png"},
