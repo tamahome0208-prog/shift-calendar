@@ -129,6 +129,32 @@ header {
   z-index: 20;
   border-bottom: 1px solid var(--hairline);
 }
+.header-deco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.header-deco svg { position: absolute; }
+.deco-cloud-1 {
+  top: calc(var(--safe-top) + 14px);
+  right: -8px;
+  width: 90px;
+  height: 36px;
+  opacity: 0.32;
+  color: var(--peach);
+}
+.deco-leaf-1 {
+  bottom: 10px;
+  left: 58%;
+  width: 22px;
+  height: 22px;
+  opacity: 0.28;
+  color: var(--leaf);
+  transform: rotate(-15deg);
+}
+header > * { position: relative; z-index: 1; }
 .top-row {
   display: flex;
   align-items: center;
@@ -468,20 +494,34 @@ header {
 }
 
 .event {
-  padding: 3px 2px 4px;
+  padding: 4px 4px 4px 3px;
   border-radius: 7px;
   color: white;
   line-height: 1.05;
   min-width: 0;
   max-width: 100%;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 12px 1fr;
   align-items: center;
-  gap: 0;
+  gap: 3px;
+  letter-spacing: -0.03em;
   overflow: hidden;
-  text-align: center;
+  text-align: left;
   transition: transform 0.18s var(--ease-spring);
   position: relative;
+}
+.event-sticker {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.95;
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,0.4));
+}
+.event-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  align-items: flex-start;
 }
 .event:active { transform: scale(0.92); }
 .event .event-name {
@@ -1336,12 +1376,51 @@ header {
         <line x1="6" y1="20" x2="18" y2="20"/>
       </g>
     </symbol>
+    <!-- v7 イベントステッカー6種 -->
+    <symbol id="st-leaf" viewBox="0 0 24 24">
+      <path d="M5 18 C 6 10, 12 4, 19 5 C 18 12, 12 18, 5 18 Z" fill="#84CC16" stroke="#65A30D" stroke-width="0.8" stroke-linejoin="round"/>
+      <path d="M 5 18 Q 11 13 18 6" stroke="#3F6212" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="st-bubble" viewBox="0 0 24 24">
+      <path d="M4 6 Q 4 3 7 3 H 17 Q 20 3 20 6 V 13 Q 20 16 17 16 H 11 L 7 20 V 16 H 7 Q 4 16 4 13 Z" fill="#5AA6DC" stroke="#2E7CB9" stroke-width="0.8" stroke-linejoin="round"/>
+      <circle cx="9" cy="10" r="1" fill="white"/>
+      <circle cx="12" cy="10" r="1" fill="white"/>
+      <circle cx="15" cy="10" r="1" fill="white"/>
+    </symbol>
+    <symbol id="st-bag" viewBox="0 0 24 24">
+      <path d="M 8 6 V 5 a 4 4 0 0 1 8 0 V 6" stroke="#FF8E5C" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+      <path d="M 5 7 H 19 L 18 20 H 6 Z" fill="#FFB892" stroke="#FF8E5C" stroke-width="0.8" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="st-star" viewBox="0 0 24 24">
+      <path d="M12 3 L 14 10 L 21 12 L 14 14 L 12 21 L 10 14 L 3 12 L 10 10 Z" fill="#FBBF24" stroke="#D97706" stroke-width="0.6" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="st-coin" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="#FBBF24" stroke="#3F6212" stroke-width="0.8"/>
+      <circle cx="12" cy="12" r="6.5" fill="none" stroke="#3F6212" stroke-width="0.5" opacity="0.4"/>
+      <text x="12" y="16" text-anchor="middle" font-size="11" font-weight="900" fill="#3F6212">¥</text>
+    </symbol>
+    <symbol id="st-pin" viewBox="0 0 24 24">
+      <path d="M12 3 L 12 12 L 7 14 L 12 14 L 12 22 L 13 14 L 17 14 L 12 12 Z" fill="#C58AE0" stroke="#9333EA" stroke-width="0.7" stroke-linejoin="round"/>
+      <circle cx="12" cy="8" r="2.4" fill="#A372C6"/>
+    </symbol>
+    <!-- v7 ヘッダー装飾 -->
+    <symbol id="deco-cloud" viewBox="0 0 96 36">
+      <path d="M 14 24 Q 6 24 6 18 Q 6 12 14 12 Q 16 4 26 6 Q 32 0 42 6 Q 52 4 56 12 Q 72 10 76 18 Q 80 26 70 28 H 16 Q 10 28 14 24 Z" fill="currentColor"/>
+    </symbol>
+    <symbol id="deco-leaf-small" viewBox="0 0 24 24">
+      <path d="M3 21 Q 4 11 12 4 Q 20 6 21 14 Q 18 22 6 21 Z" fill="currentColor"/>
+      <path d="M 5 19 Q 11 14 19 8" stroke="rgba(0,0,0,0.25)" stroke-width="0.6" fill="none" stroke-linecap="round"/>
+    </symbol>
   </defs>
 </svg>
 
 <div class="sync-indicator" id="sync-indicator" title="同期状態"></div>
 
 <header>
+  <div class="header-deco" aria-hidden="true">
+    <svg class="deco-cloud-1"><use href="#deco-cloud"/></svg>
+    <svg class="deco-leaf-1"><use href="#deco-leaf-small"/></svg>
+  </div>
   <div class="top-row">
     <div class="title-block">
       <svg class="mascot" id="mascot"><use href="#frog"/></svg>
@@ -1832,6 +1911,15 @@ function eventTypeClass(summary) {
   if (OUTING_LABELS.includes(summary)) return 't-outing';
   return '';
 }
+function stickerId(summary, person) {
+  if (A_SHIFT_LABELS.includes(summary)) return 'st-star';
+  if (MEETING_LABELS.includes(summary)) return 'st-bubble';
+  if (OUTING_LABELS.includes(summary)) return 'st-bag';
+  if (REST_LABELS.includes(summary)) return 'st-leaf';
+  if (person === '給料') return 'st-coin';
+  if (person === '予定') return 'st-pin';
+  return null;
+}
 function isBothOff(builtinEvents) {
   const k = builtinEvents.some(e => e.person === 'こうき' && REST_LABELS.includes(e.summary));
   const y = builtinEvents.some(e => e.person === 'ゆい' && REST_LABELS.includes(e.summary));
@@ -2175,10 +2263,12 @@ function render() {
       const ev = document.createElement('div');
       const typeCls = eventTypeClass(e.summary);
       ev.className = 'event ' + PERSON_KEY[e.person] + (typeCls ? ' ' + typeCls : '');
+      const sId = stickerId(e.summary, e.person);
+      const stickerSvg = sId ? `<svg class="event-sticker"><use href="#${sId}"/></svg>` : '<span></span>';
       if (e.person === '給料') {
-        ev.innerHTML = `<span class="event-label">${escapeHtml(e.summary)}</span>`;
+        ev.innerHTML = `${stickerSvg}<span class="event-text"><span class="event-label">${escapeHtml(e.summary)}</span></span>`;
       } else {
-        ev.innerHTML = `<span class="event-name">${e.person}</span><span class="event-label">${escapeHtml(e.summary)}</span>`;
+        ev.innerHTML = `${stickerSvg}<span class="event-text"><span class="event-name">${e.person}</span><span class="event-label">${escapeHtml(e.summary)}</span></span>`;
       }
       cell.appendChild(ev);
     });
