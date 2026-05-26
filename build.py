@@ -1422,6 +1422,25 @@ header {
   </div>
 </div>
 
+<!-- Confirm Sheet -->
+<div class="sheet-overlay" id="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="sheet" style="max-height: auto;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title" id="confirm-title">確認</div>
+    </div>
+    <div class="sheet-body">
+      <p id="confirm-message" style="font-size:15px;font-weight:600;color:var(--text-2);line-height:1.6;padding:8px 0;"></p>
+    </div>
+    <div class="sheet-footer">
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="confirm-cancel">キャンセル</button>
+        <button class="btn btn-danger" id="confirm-ok">削除する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 const EVENTS = __EVENTS_JSON__;
 const HOLIDAYS_BY_YEAR = __HOLIDAYS_JSON__;
@@ -2104,8 +2123,9 @@ async function saveForm() {
 }
 async function deleteForm() {
   if (!editingId) return;
+  const ok = await showConfirm('予定を削除', 'この予定を削除します。よろしいですか?', '削除する');
+  if (!ok) return;
   haptic([40, 30, 40]);
-  if (!confirm('この予定を削除します。よろしいですか?')) return;
   const date = document.getElementById('f-date').value;
   await Storage.remove(editingId);
   closeForm();
@@ -2206,6 +2226,24 @@ async function saveSettings() {
     Storage.initLocal();
   }
   closeSettings();
+}
+
+// ====================  CONFIRM SHEET  ====================
+let _confirmResolver = null;
+function showConfirm(title, message, okLabel) {
+  return new Promise((resolve) => {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-message').textContent = message;
+    document.getElementById('confirm-ok').textContent = okLabel || '削除する';
+    _confirmResolver = resolve;
+    document.getElementById('confirm-overlay').classList.add('open');
+    if (typeof lockBodyScroll === 'function') lockBodyScroll('confirm-overlay');
+  });
+}
+function _resolveConfirm(ok) {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  if (typeof releaseBodyScroll === 'function') releaseBodyScroll('confirm-overlay');
+  if (_confirmResolver) { _confirmResolver(ok); _confirmResolver = null; }
 }
 
 // ====================  INIT  ====================
@@ -2311,6 +2349,11 @@ async function init() {
   document.getElementById('settings-overlay').onclick = e => { if (e.target.id==='settings-overlay') closeSettings(); };
   document.getElementById('settings-save').onclick = saveSettings;
   document.getElementById('enable-notif').onclick = enableNotifications;
+  document.getElementById('confirm-ok').onclick = () => _resolveConfirm(true);
+  document.getElementById('confirm-cancel').onclick = () => _resolveConfirm(false);
+  document.getElementById('confirm-overlay').onclick = e => {
+    if (e.target.id === 'confirm-overlay') _resolveConfirm(false);
+  };
 
   // Swipe gestures for month nav
   let swipeStart = null;
@@ -2332,6 +2375,7 @@ async function init() {
 
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape') return;
+    if (document.getElementById('confirm-overlay').classList.contains('open')) { _resolveConfirm(false); return; }
     const top = topMostOpenSheet();
     if (top === 'form-overlay') closeForm();
     else if (top === 'settings-overlay') closeSettings();

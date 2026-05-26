@@ -1406,6 +1406,25 @@ header {
   </div>
 </div>
 
+<!-- Confirm Sheet -->
+<div class="sheet-overlay" id="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="sheet" style="max-height: auto;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title" id="confirm-title">確認</div>
+    </div>
+    <div class="sheet-body">
+      <p id="confirm-message" style="font-size:15px;font-weight:600;color:var(--text-2);line-height:1.6;padding:8px 0;"></p>
+    </div>
+    <div class="sheet-footer">
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="confirm-cancel">キャンセル</button>
+        <button class="btn btn-danger" id="confirm-ok">削除する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 const EVENTS = {"2026-06-01": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "希望休"}], "2026-06-02": [{"person": "こうき", "summary": "A"}, {"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "MTG"}], "2026-06-04": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-05": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-06": [{"person": "こうき", "summary": "出店"}], "2026-06-07": [{"person": "こうき", "summary": "出店"}], "2026-06-08": [{"person": "ゆい", "summary": "A"}, {"person": "こうき", "summary": "休"}], "2026-06-09": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-10": [{"person": "こうき", "summary": "出店"}, {"person": "ゆい", "summary": "休"}], "2026-06-11": [{"person": "こうき", "summary": "休"}], "2026-06-12": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-13": [{"person": "ゆい", "summary": "A"}, {"person": "こうき", "summary": "出店"}], "2026-06-14": [{"person": "こうき", "summary": "出店"}], "2026-06-15": [{"person": "ゆい", "summary": "A"}, {"person": "こうき", "summary": "会議"}], "2026-06-16": [{"person": "こうき", "summary": "A"}, {"person": "ゆい", "summary": "休"}], "2026-06-17": [{"person": "こうき", "summary": "休"}], "2026-06-18": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}], "2026-06-19": [{"person": "こうき", "summary": "A"}, {"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "出店"}, {"person": "給料", "summary": "給料日", "desc": "6月分給与"}], "2026-06-20": [{"person": "こうき", "summary": "出店"}], "2026-06-21": [{"person": "こうき", "summary": "出店"}], "2026-06-22": [{"person": "こうき", "summary": "休"}], "2026-06-23": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}], "2026-06-24": [{"person": "ゆい", "summary": "A"}, {"person": "こうき", "summary": "会議"}], "2026-06-25": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "有"}], "2026-06-26": [{"person": "こうき", "summary": "休"}], "2026-06-27": [{"person": "こうき", "summary": "出店"}, {"person": "ゆい", "summary": "希望休"}], "2026-06-28": [{"person": "こうき", "summary": "A"}, {"person": "ゆい", "summary": "出店"}], "2026-06-29": [{"person": "こうき", "summary": "有"}], "2026-06-30": [{"person": "こうき", "summary": "会議"}], "2026-01-20": [{"person": "給料", "summary": "給料日", "desc": "1月分給与"}], "2026-02-20": [{"person": "給料", "summary": "給料日", "desc": "2月分給与"}], "2026-03-19": [{"person": "給料", "summary": "給料日", "desc": "3月分給与"}], "2026-04-20": [{"person": "給料", "summary": "給料日", "desc": "4月分給与"}], "2026-05-20": [{"person": "給料", "summary": "給料日", "desc": "5月分給与"}], "2026-07-17": [{"person": "給料", "summary": "給料日", "desc": "7月分給与"}], "2026-08-20": [{"person": "給料", "summary": "給料日", "desc": "8月分給与"}], "2026-09-18": [{"person": "給料", "summary": "給料日", "desc": "9月分給与"}], "2026-10-20": [{"person": "給料", "summary": "給料日", "desc": "10月分給与"}], "2026-11-20": [{"person": "給料", "summary": "給料日", "desc": "11月分給与"}], "2026-12-18": [{"person": "給料", "summary": "給料日", "desc": "12月分給与"}], "2026-07-10": [{"person": "給料", "summary": "ボーナス", "desc": "ボーナス(7/10)"}], "2026-12-10": [{"person": "給料", "summary": "ボーナス", "desc": "ボーナス(12/10)"}]};
 const HOLIDAYS_BY_YEAR = {"2025": ["2025-01-01", "2025-01-13", "2025-02-11", "2025-02-23", "2025-02-24", "2025-03-20", "2025-04-29", "2025-05-03", "2025-05-04", "2025-05-05", "2025-05-06", "2025-07-21", "2025-08-11", "2025-09-15", "2025-09-23", "2025-10-13", "2025-11-03", "2025-11-23", "2025-11-24"], "2026": ["2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20", "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06", "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-23", "2026-10-12", "2026-11-03", "2026-11-23"], "2027": ["2027-01-01", "2027-01-11", "2027-02-11", "2027-02-23", "2027-03-21", "2027-03-22", "2027-04-29", "2027-05-03", "2027-05-04", "2027-05-05", "2027-07-19", "2027-08-11", "2027-09-20", "2027-09-23", "2027-10-11", "2027-11-03", "2027-11-23"], "2028": ["2028-01-01", "2028-01-10", "2028-02-11", "2028-02-23", "2028-03-20", "2028-04-29", "2028-05-03", "2028-05-04", "2028-05-05", "2028-07-17", "2028-08-11", "2028-09-18", "2028-09-22", "2028-10-09", "2028-11-03", "2028-11-23"]};
@@ -2088,8 +2107,9 @@ async function saveForm() {
 }
 async function deleteForm() {
   if (!editingId) return;
+  const ok = await showConfirm('予定を削除', 'この予定を削除します。よろしいですか?', '削除する');
+  if (!ok) return;
   haptic([40, 30, 40]);
-  if (!confirm('この予定を削除します。よろしいですか?')) return;
   const date = document.getElementById('f-date').value;
   await Storage.remove(editingId);
   closeForm();
@@ -2190,6 +2210,24 @@ async function saveSettings() {
     Storage.initLocal();
   }
   closeSettings();
+}
+
+// ====================  CONFIRM SHEET  ====================
+let _confirmResolver = null;
+function showConfirm(title, message, okLabel) {
+  return new Promise((resolve) => {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-message').textContent = message;
+    document.getElementById('confirm-ok').textContent = okLabel || '削除する';
+    _confirmResolver = resolve;
+    document.getElementById('confirm-overlay').classList.add('open');
+    if (typeof lockBodyScroll === 'function') lockBodyScroll('confirm-overlay');
+  });
+}
+function _resolveConfirm(ok) {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  if (typeof releaseBodyScroll === 'function') releaseBodyScroll('confirm-overlay');
+  if (_confirmResolver) { _confirmResolver(ok); _confirmResolver = null; }
 }
 
 // ====================  INIT  ====================
@@ -2295,6 +2333,11 @@ async function init() {
   document.getElementById('settings-overlay').onclick = e => { if (e.target.id==='settings-overlay') closeSettings(); };
   document.getElementById('settings-save').onclick = saveSettings;
   document.getElementById('enable-notif').onclick = enableNotifications;
+  document.getElementById('confirm-ok').onclick = () => _resolveConfirm(true);
+  document.getElementById('confirm-cancel').onclick = () => _resolveConfirm(false);
+  document.getElementById('confirm-overlay').onclick = e => {
+    if (e.target.id === 'confirm-overlay') _resolveConfirm(false);
+  };
 
   // Swipe gestures for month nav
   let swipeStart = null;
@@ -2316,6 +2359,7 @@ async function init() {
 
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape') return;
+    if (document.getElementById('confirm-overlay').classList.contains('open')) { _resolveConfirm(false); return; }
     const top = topMostOpenSheet();
     if (top === 'form-overlay') closeForm();
     else if (top === 'settings-overlay') closeSettings();
