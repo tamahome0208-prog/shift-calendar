@@ -1137,6 +1137,51 @@ header {
   color: var(--muted); font-size: 14px; cursor: pointer;
 }
 .anniv-row .anniv-del:active { transform: scale(0.92); }
+
+.recall-card {
+  margin: 6px 14px 6px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+}
+.recall-header {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 12px 16px;
+  background: transparent; border: none; cursor: pointer;
+  font-family: inherit; text-align: left;
+}
+.recall-header:active { background: var(--surface-soft); }
+.recall-label {
+  flex: 1; font-size: 13px; font-weight: 800;
+  color: var(--text-2); letter-spacing: 0.04em;
+}
+.recall-count {
+  font-family: var(--font-en); font-size: 11px; font-weight: 800;
+  padding: 2px 8px; background: var(--cheek); color: white;
+  border-radius: 999px; letter-spacing: 0;
+}
+.recall-chevron {
+  width: 16px; height: 16px; color: var(--muted);
+  transition: transform 0.2s var(--ease-out);
+}
+.recall-header[aria-expanded="true"] .recall-chevron { transform: rotate(180deg); }
+.recall-body {
+  padding: 0 16px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.recall-item {
+  padding: 10px 12px;
+  background: var(--surface-soft); border-radius: 12px;
+  font-size: 13px; font-weight: 600;
+  color: var(--text-2); line-height: 1.5;
+}
+.recall-item-when {
+  font-family: var(--font-en); font-size: 11px; font-weight: 800;
+  color: var(--muted); letter-spacing: 0.06em;
+  margin-bottom: 4px; display: block;
+}
 </style>
 </head>
 <body>
@@ -1299,6 +1344,15 @@ header {
       <div class="hero-stat-sub">回</div>
     </button>
   </div>
+</section>
+
+<section class="recall-card" id="recall-card" hidden>
+  <button class="recall-header" id="recall-toggle" type="button" aria-expanded="false">
+    <span class="recall-label">ふりかえり</span>
+    <span class="recall-count" id="recall-count">0</span>
+    <svg class="recall-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+  </button>
+  <div class="recall-body" id="recall-body" hidden></div>
 </section>
 
 <div class="weekdays">
@@ -1856,6 +1910,48 @@ function renderHero() {
   };
 }
 
+function renderRecall() {
+  const today = new Date();
+  const card = document.getElementById('recall-card');
+  const body = document.getElementById('recall-body');
+  const countEl = document.getElementById('recall-count');
+  if (!card) return;
+  const targets = [
+    { years: 1, label: '1年前の今日' },
+    { months: 1, label: '先月の今日' },
+  ];
+  const items = [];
+  for (const t of targets) {
+    const d = new Date(today);
+    if (t.years) d.setFullYear(d.getFullYear() - t.years);
+    if (t.months) d.setMonth(d.getMonth() - t.months);
+    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const builtin = EVENTS[key] || [];
+    const customForKey = (allCustomEvents || []).filter(e => e.date === key);
+    const memoRec = customForKey.find(e => e.type === 'memo');
+    const bothOff = isBothOff(builtin);
+    if (bothOff || (memoRec && (memoRec.memo || memoRec.stamp)) || customForKey.length > 0) {
+      let txt = bothOff ? '二人ともお休みでした' : '';
+      if (memoRec && memoRec.memo) txt += (txt ? ' / ' : '') + memoRec.memo.slice(0, 40);
+      if (!txt && customForKey.length > 0) txt = customForKey[0].title || '予定あり';
+      items.push({ when: t.label, key, txt });
+    }
+  }
+  if (items.length === 0) {
+    card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+  countEl.textContent = items.length;
+  body.innerHTML = '';
+  items.forEach(it => {
+    const el = document.createElement('div');
+    el.className = 'recall-item';
+    el.innerHTML = `<span class="recall-item-when">${it.when}</span>${escapeHtml(it.txt)}`;
+    body.appendChild(el);
+  });
+}
+
 // ====================  RENDER  ====================
 function render() {
   document.getElementById('year-label').textContent = `${viewYear}`;
@@ -1976,6 +2072,7 @@ function render() {
     grid.appendChild(cell);
   }
   renderHero();
+  renderRecall();
 }
 
 // ====================  DAY SHEET  ====================
@@ -2484,6 +2581,13 @@ async function init() {
     document.getElementById('anniv-month').value = '';
     document.getElementById('anniv-day').value = '';
     document.getElementById('anniv-add-form').style.display = 'none';
+  };
+
+  const recallToggle = document.getElementById('recall-toggle');
+  if (recallToggle) recallToggle.onclick = () => {
+    const expanded = recallToggle.getAttribute('aria-expanded') === 'true';
+    recallToggle.setAttribute('aria-expanded', String(!expanded));
+    document.getElementById('recall-body').hidden = expanded;
   };
 
   // Swipe gestures for month nav
