@@ -1104,6 +1104,23 @@ header {
   font-weight: 800;
   font-size: 12px;
 }
+.anniv-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.anniv-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 13px; font-weight: 700;
+}
+.anniv-row .anniv-name { flex: 1; color: var(--text); }
+.anniv-row .anniv-date { font-family: var(--font-en); color: var(--cheek-deep); font-weight: 800; }
+.anniv-row .anniv-del {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); font-size: 14px; cursor: pointer;
+}
+.anniv-row .anniv-del:active { transform: scale(0.92); }
 </style>
 </head>
 <body>
@@ -1392,6 +1409,21 @@ header {
         <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">空欄=この端末のみ保存 / 入力=2台で自動同期</div>
       </div>
       <div class="field">
+        <label style="display:flex;align-items:center;gap:6px;">記念日(最大3件)</label>
+        <div id="anniv-list" class="anniv-list"></div>
+        <div id="anniv-add-area">
+          <button class="btn btn-secondary" id="anniv-add-toggle" type="button" style="font-size:13px;padding:10px;">+ 追加</button>
+        </div>
+        <div id="anniv-add-form" style="display:none; margin-top:8px;">
+          <input type="text" id="anniv-name" placeholder="例: 付き合った日" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--border);font-size:14px;margin-bottom:6px;">
+          <div style="display:flex;gap:6px;">
+            <input type="number" id="anniv-month" min="1" max="12" placeholder="月" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--border);font-size:14px;">
+            <input type="number" id="anniv-day" min="1" max="31" placeholder="日" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--border);font-size:14px;">
+            <button class="btn btn-primary" id="anniv-save" type="button" style="flex:1;font-size:13px;padding:10px;">保存</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
         <label style="display:flex;align-items:center;gap:6px;"><svg style="width:16px;height:16px;"><use href="#i-bell"/></svg> ブラウザ通知</label>
         <button class="btn btn-secondary" id="enable-notif" style="font-size:14px;padding:11px;">通知を許可する</button>
         <div id="notif-status" style="font-size: 12px; color: var(--muted); margin-top: 4px;"></div>
@@ -1440,6 +1472,9 @@ const LS_CUSTOM = 'shift-cal-custom-v2';
 const LS_FBCONFIG = 'shift-cal-fb-config';
 const LS_REMINDERS = 'shift-cal-reminder-state';
 const LS_WEATHER = 'shift-cal-weather-v1';
+const LS_ANNIV = 'shift-cal-anniversaries-v1';
+let allAnniversaries = [];
+let unsubscribeAnniv = null;
 const WEATHER_TTL_MS = 6 * 60 * 60 * 1000; // 6時間キャッシュ
 const NOBORIBETSU_LAT = 42.42;
 const NOBORIBETSU_LON = 141.11;
@@ -1509,6 +1544,29 @@ let allCustomEvents = [];
 // ====================  STORAGE  ====================
 const Storage = {
   events() { return allCustomEvents; },
+  anniversaries() { return allAnniversaries; },
+  async addAnniv(a) {
+    if (firestoreDb) {
+      const { collection } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+      await this._addDoc(collection(firestoreDb, 'anniversaries'), a);
+    } else {
+      const item = { id: uid(), ...a };
+      allAnniversaries.push(item);
+      try { localStorage.setItem(LS_ANNIV, JSON.stringify(allAnniversaries)); } catch {}
+      renderSettingsAnniv();
+      render();
+    }
+  },
+  async removeAnniv(id) {
+    if (firestoreDb) {
+      await this._deleteDoc(this._doc(firestoreDb, 'anniversaries', id));
+    } else {
+      allAnniversaries = allAnniversaries.filter(a => a.id !== id);
+      try { localStorage.setItem(LS_ANNIV, JSON.stringify(allAnniversaries)); } catch {}
+      renderSettingsAnniv();
+      render();
+    }
+  },
   async init() {
     // 優先順: 1) localStorageで手動上書き 2) firebase-config.js(window) 3) ローカルのみ
     let cfg = null;
@@ -1534,6 +1592,8 @@ const Storage = {
     setSync('offline');
     try { allCustomEvents = JSON.parse(localStorage.getItem(LS_CUSTOM) || '[]'); }
     catch { allCustomEvents = []; }
+    try { allAnniversaries = JSON.parse(localStorage.getItem(LS_ANNIV) || '[]'); }
+    catch { allAnniversaries = []; }
     render();
   },
   async initFirebase(cfg) {
@@ -1569,6 +1629,14 @@ const Storage = {
         setSync('offline');
       }
     );
+    this._collAnniv = collection(firestoreDb, 'anniversaries');
+    if (unsubscribeAnniv) unsubscribeAnniv();
+    unsubscribeAnniv = onSnapshot(this._collAnniv, snap => {
+      allAnniversaries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      try { localStorage.setItem(LS_ANNIV, JSON.stringify(allAnniversaries)); } catch {}
+      renderSettingsAnniv();
+      render();
+    });
   },
   async add(ev) {
     if (firestoreDb) {
@@ -1690,9 +1758,32 @@ function renderHero() {
   } else if (todayBuiltin.some(e => e.summary === 'A')) {
     const aPersons = todayBuiltin.filter(e => e.summary === 'A').map(e => e.person);
     statusMsg = `${aPersons.join('・')} は今日A番 (8:15〜17:15)`;
-  } else if (nextDate && nextDate.days > 0 && nextDate.days <= 7) {
+  } else {
+    // 記念日カウントダウン(30日以内)
+    if (statusMsg === '今日もおつかれさま' && !hot) {
+      let nextAnniv = null;
+      for (const a of (allAnniversaries || [])) {
+        let target = new Date(today.getFullYear(), a.month - 1, a.day);
+        if (target < today) target = new Date(today.getFullYear() + 1, a.month - 1, a.day);
+        const daysAway = Math.floor((target - today) / 86400000);
+        if (daysAway >= 0 && daysAway <= 30 && (!nextAnniv || daysAway < nextAnniv.days)) {
+          nextAnniv = { name: a.name, days: daysAway };
+        }
+      }
+      if (nextAnniv) {
+        if (nextAnniv.days === 0) {
+          statusMsg = `今日は ${nextAnniv.name}`;
+          hot = true;
+          haptic([20, 40, 20, 40, 20]);
+        } else {
+          statusMsg = `あと ${nextAnniv.days} 日で ${nextAnniv.name}`;
+        }
+      }
+    }
+  }
+  if (!hot && statusMsg === '今日もおつかれさま' && nextDate && nextDate.days > 0 && nextDate.days <= 7) {
     statusMsg = `あと ${nextDate.days} 日で二人のおやすみ`;
-  } else if (nextSalary && nextSalary.days > 0 && nextSalary.days <= 5) {
+  } else if (!hot && statusMsg === '今日もおつかれさま' && nextSalary && nextSalary.days > 0 && nextSalary.days <= 5) {
     statusMsg = `あと ${nextSalary.days} 日で給料日`;
   }
   const status = document.getElementById('hero-status');
@@ -2150,10 +2241,32 @@ function scheduleReminders() {
 }
 
 // ====================  SETTINGS  ====================
+function renderSettingsAnniv() {
+  const list = document.getElementById('anniv-list');
+  if (!list) return;
+  list.innerHTML = '';
+  const annivs = allAnniversaries || [];
+  annivs.forEach(a => {
+    const row = document.createElement('div');
+    row.className = 'anniv-row';
+    row.innerHTML = `
+      <span class="anniv-name">${escapeHtml(a.name)}</span>
+      <span class="anniv-date">${a.month}/${a.day}</span>
+      <button class="anniv-del" data-id="${a.id}" aria-label="削除">×</button>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('[data-id]').forEach(b => {
+    b.onclick = () => Storage.removeAnniv(b.dataset.id);
+  });
+  const addBtn = document.getElementById('anniv-add-toggle');
+  if (addBtn) addBtn.style.display = annivs.length >= 3 ? 'none' : 'inline-flex';
+}
 function openSettings() {
   const cfg = localStorage.getItem(LS_FBCONFIG) || '';
   document.getElementById('fb-config').value = cfg;
   updateNotifStatus();
+  renderSettingsAnniv();
   document.getElementById('settings-overlay').classList.add('open');
   document.getElementById('settings-overlay').setAttribute('aria-hidden', 'false');
   lockBodyScroll('settings');
@@ -2337,6 +2450,24 @@ async function init() {
   document.getElementById('confirm-cancel').onclick = () => _resolveConfirm(false);
   document.getElementById('confirm-overlay').onclick = e => {
     if (e.target.id === 'confirm-overlay') _resolveConfirm(false);
+  };
+
+  const annivToggle = document.getElementById('anniv-add-toggle');
+  if (annivToggle) annivToggle.onclick = () => {
+    document.getElementById('anniv-add-form').style.display = 'block';
+    annivToggle.style.display = 'none';
+  };
+  const annivSave = document.getElementById('anniv-save');
+  if (annivSave) annivSave.onclick = async () => {
+    const name = document.getElementById('anniv-name').value.trim();
+    const month = parseInt(document.getElementById('anniv-month').value, 10);
+    const day = parseInt(document.getElementById('anniv-day').value, 10);
+    if (!name || !month || !day || month < 1 || month > 12 || day < 1 || day > 31) return;
+    await Storage.addAnniv({ name, month, day });
+    document.getElementById('anniv-name').value = '';
+    document.getElementById('anniv-month').value = '';
+    document.getElementById('anniv-day').value = '';
+    document.getElementById('anniv-add-form').style.display = 'none';
   };
 
   // Swipe gestures for month nav
