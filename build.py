@@ -1668,7 +1668,7 @@ header > * { position: relative; z-index: 1; }
 </div>
 
 <!-- Confirm Sheet -->
-<div class="sheet-overlay" id="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+<div class="sheet-overlay" id="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-hidden="true">
   <div class="sheet" style="max-height: auto;">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
@@ -1687,7 +1687,7 @@ header > * { position: relative; z-index: 1; }
 </div>
 
 <!-- Year View Sheet -->
-<div class="sheet-overlay" id="year-overlay" role="dialog" aria-modal="true" aria-labelledby="year-title">
+<div class="sheet-overlay" id="year-overlay" role="dialog" aria-modal="true" aria-labelledby="year-title" aria-hidden="true">
   <div class="sheet" style="max-height: 92vh;">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
@@ -1726,6 +1726,7 @@ const LS_FBCONFIG = 'shift-cal-fb-config';
 const LS_REMINDERS = 'shift-cal-reminder-state';
 const LS_WEATHER = 'shift-cal-weather-v1';
 const LS_ANNIV = 'shift-cal-anniversaries-v1';
+const LS_LAST_VIEW = 'shift-cal-last-view-v1';
 let allAnniversaries = [];
 let unsubscribeAnniv = null;
 const WEATHER_TTL_MS = 6 * 60 * 60 * 1000; // 6時間キャッシュ
@@ -2085,6 +2086,7 @@ function renderHero() {
     viewYear = date.getFullYear();
     viewMonth = date.getMonth();
     render();
+    saveLastView();
     setTimeout(() => openDaySheet(key, viewYear, viewMonth, date.getDate()), 80);
   };
   document.getElementById('hero-stat-date').onclick = () => nextDate && jumpTo(nextDate.d, nextDate.k);
@@ -2148,11 +2150,15 @@ let yearViewYear = null;
 function openYearView() {
   yearViewYear = viewYear;
   renderYearView();
-  document.getElementById('year-overlay').classList.add('open');
+  const yo = document.getElementById('year-overlay');
+  yo.classList.add('open');
+  yo.removeAttribute('aria-hidden');
   if (typeof lockBodyScroll === 'function') lockBodyScroll('year-overlay');
 }
 function closeYearView() {
-  document.getElementById('year-overlay').classList.remove('open');
+  const yo = document.getElementById('year-overlay');
+  yo.classList.remove('open');
+  yo.setAttribute('aria-hidden', 'true');
   if (typeof releaseBodyScroll === 'function') releaseBodyScroll('year-overlay');
 }
 function renderYearView() {
@@ -2194,6 +2200,7 @@ function renderYearView() {
         closeYearView();
         viewYear = yearViewYear; viewMonth = m;
         render();
+        saveLastView();
         setTimeout(() => openDaySheet(key, viewYear, viewMonth, d), 120);
       };
       cells.appendChild(cell);
@@ -2706,12 +2713,16 @@ function showConfirm(title, message, okLabel) {
     document.getElementById('confirm-message').textContent = message;
     document.getElementById('confirm-ok').textContent = okLabel || '削除する';
     _confirmResolver = resolve;
-    document.getElementById('confirm-overlay').classList.add('open');
+    const co = document.getElementById('confirm-overlay');
+    co.classList.add('open');
+    co.removeAttribute('aria-hidden');
     if (typeof lockBodyScroll === 'function') lockBodyScroll('confirm-overlay');
   });
 }
 function _resolveConfirm(ok) {
-  document.getElementById('confirm-overlay').classList.remove('open');
+  const co = document.getElementById('confirm-overlay');
+  co.classList.remove('open');
+  co.setAttribute('aria-hidden', 'true');
   if (typeof releaseBodyScroll === 'function') releaseBodyScroll('confirm-overlay');
   if (_confirmResolver) { _confirmResolver(ok); _confirmResolver = null; }
 }
@@ -2740,10 +2751,20 @@ function celebrateBothOff() {
   setTimeout(() => overlay.remove(), 5500);
 }
 
+function saveLastView() {
+  try { localStorage.setItem(LS_LAST_VIEW, JSON.stringify({y: viewYear, m: viewMonth, ts: Date.now()})); } catch(e) {}
+}
+
 async function init() {
   const today = new Date();
   viewYear = today.getFullYear();
   viewMonth = today.getMonth();
+  try {
+    const lv = JSON.parse(localStorage.getItem(LS_LAST_VIEW) || 'null');
+    if (lv && typeof lv.y === 'number' && typeof lv.m === 'number' && Date.now() - lv.ts < 86400000) {
+      viewYear = lv.y; viewMonth = lv.m;
+    }
+  } catch(e) {}
   await Storage.init();
   render();
 
@@ -2763,6 +2784,7 @@ async function init() {
     const t = new Date();
     viewYear = t.getFullYear(); viewMonth = t.getMonth();
     render();
+    saveLastView();
   };
   document.getElementById('mascot').onclick = () => {
     const m = document.getElementById('mascot');
@@ -2894,6 +2916,7 @@ function shift(delta) {
   if (viewMonth < 0) { viewMonth = 11; viewYear--; }
   if (viewMonth > 11) { viewMonth = 0; viewYear++; }
   render();
+  saveLastView();
 }
 
 init();
@@ -2968,18 +2991,16 @@ import datetime as _dt
 
 # PDF由来のA番(8:15~17:15シフト)。Excelには未収録のためここで補う。
 # 同じファイル名のPDFがあれば extract_a_shifts_from_pdf() で自動上書き
-A_SHIFTS_FALLBACK = {
-    "こうき": [(2026, 6, d) for d in (2, 16, 19, 28)],
-    "ゆい":   [(2026, 6, d) for d in (8, 13, 15, 24)],
-}
+A_SHIFTS_FALLBACK = {}
 
 
-def extract_a_shifts_from_pdf(pdf_path):
-    """PDFのシフト表からA番の日付を抽出。失敗時は None を返す。"""
+def extract_a_shifts_from_pdf(pdf_path, year=None, month=None):
+    """PDFのシフト表からA番の日付を抽出。失敗時は空辞書を返す。"""
     try:
         import pdfplumber
     except ImportError:
-        return None
+        print("  warn: pdfplumber未インストール、A番PDF抽出スキップ")
+        return {}
     try:
         with pdfplumber.open(pdf_path) as pdf:
             t = pdf.pages[0].extract_tables()[0]
@@ -2993,10 +3014,11 @@ def extract_a_shifts_from_pdf(pdf_path):
                     kouki.append(d)
                 if (row[yui_col] or '').strip() in ('A', 'Ａ'):
                     yui.append(d)
-        return {"こうき": [(2026, 6, d) for d in kouki],
-                "ゆい":   [(2026, 6, d) for d in yui]}
-    except Exception:
-        return None
+        return {"こうき": [(year, month, d) for d in kouki],
+                "ゆい":   [(year, month, d) for d in yui]}
+    except Exception as e:
+        print(f"  warn: PDF抽出失敗({e})、A番は空")
+        return {}
 
 
 def main():
@@ -3007,10 +3029,15 @@ def main():
     shift_events, year = parse_shift(xlsx)
     salary_events = build_salary_events(year)
 
+    # xlsxから取得した月(shift_eventsの最初の日付から)
+    shift_month = shift_events[0][1].month if shift_events else 1
+
     # 対応するPDFがあればA番を取得
     pdf_path = os.path.splitext(xlsx)[0] + ".pdf"
-    a_shifts = extract_a_shifts_from_pdf(pdf_path) if os.path.exists(pdf_path) else None
-    if a_shifts is None:
+    if os.path.exists(pdf_path):
+        a_shifts = extract_a_shifts_from_pdf(pdf_path, year=year, month=shift_month)
+    else:
+        print("  warn: PDFなし、A番は空")
         a_shifts = A_SHIFTS_FALLBACK
     print(f"  A番: こうき={[d for _,_,d in a_shifts.get('こうき', [])]}, ゆい={[d for _,_,d in a_shifts.get('ゆい', [])]}")
 
