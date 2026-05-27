@@ -2991,7 +2991,19 @@ import datetime as _dt
 
 # PDF由来のA番(8:15~17:15シフト)。Excelには未収録のためここで補う。
 # 同じファイル名のPDFがあれば extract_a_shifts_from_pdf() で自動上書き
-A_SHIFTS_FALLBACK = {}
+# 構造: {(year, month): {person: [day, ...]}}
+A_SHIFTS_FALLBACK_BY_MONTH = {
+    (2026, 6): {
+        "こうき": [2, 16, 19, 28],
+        "ゆい":   [8, 13, 15, 24],
+    },
+}
+
+
+def get_fallback_a_shifts(year, month):
+    """指定年月のフォールバックA番を取得。なければ空辞書。"""
+    raw = A_SHIFTS_FALLBACK_BY_MONTH.get((year, month), {})
+    return {person: [(year, month, d) for d in days] for person, days in raw.items()}
 
 
 def extract_a_shifts_from_pdf(pdf_path, year=None, month=None):
@@ -3032,13 +3044,18 @@ def main():
     # xlsxから取得した月(shift_eventsの最初の日付から)
     shift_month = shift_events[0][1].month if shift_events else 1
 
-    # 対応するPDFがあればA番を取得
+    # 対応するPDFがあればA番を取得、なければ A_SHIFTS_FALLBACK_BY_MONTH からフォールバック
     pdf_path = os.path.splitext(xlsx)[0] + ".pdf"
+    a_shifts = {}
     if os.path.exists(pdf_path):
         a_shifts = extract_a_shifts_from_pdf(pdf_path, year=year, month=shift_month)
-    else:
-        print("  warn: PDFなし、A番は空")
-        a_shifts = A_SHIFTS_FALLBACK
+    if not a_shifts:
+        fallback = get_fallback_a_shifts(year, shift_month)
+        if fallback:
+            print(f"  info: PDF未使用、{year}/{shift_month}のフォールバック辞書からA番取得")
+            a_shifts = fallback
+        else:
+            print(f"  warn: PDFなし+フォールバックなし、A番は空 (year={year}, month={shift_month})")
     print(f"  A番: こうき={[d for _,_,d in a_shifts.get('こうき', [])]}, ゆい={[d for _,_,d in a_shifts.get('ゆい', [])]}")
 
     by_date = {}
