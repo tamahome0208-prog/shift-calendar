@@ -1348,6 +1348,27 @@ header > * { position: relative; z-index: 1; }
   font-size: 12px; font-weight: 700; color: var(--muted);
   padding: 6px 16px 8px; border-bottom: 1px solid var(--border);
 }
+.anniv-chip {
+  padding: 3px 4px;
+  border-radius: 7px;
+  color: white;
+  font-size: 9.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  letter-spacing: -0.03em;
+  position: relative;
+  pointer-events: none;
+}
+.anniv-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+.anniv-chip span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.anniv-chip.t-birth { background: linear-gradient(135deg, var(--cheek) 0%, var(--cheek-deep) 100%); }
+.anniv-chip.t-anniv { background: linear-gradient(135deg, var(--yui) 0%, var(--yui-meeting) 100%); }
+.anniv-chip.t-other { background: linear-gradient(135deg, var(--custom) 0%, #A372C6 100%); }
 </style>
 </head>
 <body>
@@ -1477,6 +1498,12 @@ header > * { position: relative; z-index: 1; }
     </symbol>
     <symbol id="st-star" viewBox="0 0 24 24">
       <path d="M12 3 L 14 10 L 21 12 L 14 14 L 12 21 L 10 14 L 3 12 L 10 10 Z" fill="#FBBF24" stroke="#D97706" stroke-width="0.6" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="st-cake" viewBox="0 0 24 24">
+      <rect x="4" y="12" width="16" height="9" rx="1.5" fill="#FFD9E6" stroke="#F764A2" stroke-width="0.8"/>
+      <path d="M 4 15 Q 8 17 12 15 Q 16 17 20 15" stroke="#F764A2" stroke-width="1" fill="none"/>
+      <rect x="11" y="6" width="2" height="6" fill="#FBBF24" rx="0.5"/>
+      <path d="M12 4 L 12.5 6 L 11.5 6 Z" fill="#FF8E5C"/>
     </symbol>
     <symbol id="st-coin" viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="9" fill="#FBBF24" stroke="#3F6212" stroke-width="0.8"/>
@@ -1693,13 +1720,18 @@ header > * { position: relative; z-index: 1; }
         <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">空欄=この端末のみ保存 / 入力=2台で自動同期</div>
       </div>
       <div class="field">
-        <label style="display:flex;align-items:center;gap:6px;">記念日(最大3件)</label>
+        <label style="display:flex;align-items:center;gap:6px;">毎年の予定(誕生日・記念日など)</label>
         <div id="anniv-list" class="anniv-list"></div>
         <div id="anniv-add-area">
           <button class="btn btn-secondary" id="anniv-add-toggle" type="button" style="font-size:13px;padding:10px;">+ 追加</button>
         </div>
         <div id="anniv-add-form" style="display:none; margin-top:8px;">
           <input type="text" id="anniv-name" placeholder="例: 付き合った日" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--border);font-size:14px;margin-bottom:6px;">
+          <select id="anniv-type" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--border);font-size:14px;margin-bottom:6px;background:var(--surface);">
+            <option value="birth">🎂 誕生日</option>
+            <option value="anniv" selected>💗 記念日</option>
+            <option value="other">🌸 その他</option>
+          </select>
           <div style="display:flex;gap:6px;">
             <input type="number" id="anniv-month" min="1" max="12" placeholder="月" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--border);font-size:14px;">
             <input type="number" id="anniv-day" min="1" max="31" placeholder="日" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--border);font-size:14px;">
@@ -2469,6 +2501,15 @@ function render() {
     }
 
     const dayEvents = eventsForDate(key).filter(e => filters[PERSON_KEY[e.person]]);
+    const anniversariesForDay = (allAnniversaries || []).filter(a => a.month === m + 1 && a.day === d);
+    anniversariesForDay.forEach(a => {
+      const type = a.type || 'other';
+      const chip = document.createElement('div');
+      chip.className = `anniv-chip t-${type}`;
+      const iconId = type === 'birth' ? 'st-cake' : (type === 'anniv' ? 'heart' : 'st-star');
+      chip.innerHTML = `<svg><use href="#${iconId}"/></svg><span>${escapeHtml(a.name)}</span>`;
+      cell.appendChild(chip);
+    });
     dayEvents.slice(0, 3).forEach(e => {
       const ev = document.createElement('div');
       const typeCls = eventTypeClass(e.summary);
@@ -2801,11 +2842,13 @@ function renderSettingsAnniv() {
   if (!list) return;
   list.innerHTML = '';
   const annivs = allAnniversaries || [];
+  const typeEmoji = { birth: '🎂', anniv: '💗', other: '🌸' };
   annivs.forEach(a => {
     const row = document.createElement('div');
     row.className = 'anniv-row';
+    const emoji = typeEmoji[a.type || 'other'] || '🌸';
     row.innerHTML = `
-      <span class="anniv-name">${escapeHtml(a.name)}</span>
+      <span class="anniv-name">${emoji} ${escapeHtml(a.name)}</span>
       <span class="anniv-date">${a.month}/${a.day}</span>
       <button class="anniv-del" data-id="${a.id}" aria-label="削除">×</button>
     `;
@@ -2815,7 +2858,7 @@ function renderSettingsAnniv() {
     b.onclick = () => Storage.removeAnniv(b.dataset.id);
   });
   const addBtn = document.getElementById('anniv-add-toggle');
-  if (addBtn) addBtn.style.display = annivs.length >= 3 ? 'none' : 'inline-flex';
+  if (addBtn) addBtn.style.display = 'inline-flex';
 }
 function openSettings() {
   const cfg = localStorage.getItem(LS_FBCONFIG) || '';
@@ -3033,12 +3076,15 @@ async function init() {
     const name = document.getElementById('anniv-name').value.trim();
     const month = parseInt(document.getElementById('anniv-month').value, 10);
     const day = parseInt(document.getElementById('anniv-day').value, 10);
+    const type = document.getElementById('anniv-type').value || 'anniv';
     if (!name || !month || !day || month < 1 || month > 12 || day < 1 || day > 31) return;
-    await Storage.addAnniv({ name, month, day });
+    await Storage.addAnniv({ name, month, day, type });
     document.getElementById('anniv-name').value = '';
     document.getElementById('anniv-month').value = '';
     document.getElementById('anniv-day').value = '';
     document.getElementById('anniv-add-form').style.display = 'none';
+    const addBtn = document.getElementById('anniv-add-toggle');
+    if (addBtn) addBtn.style.display = 'inline-flex';
   };
 
   const recallToggle = document.getElementById('recall-toggle');
