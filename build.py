@@ -2009,6 +2009,27 @@ function haptic(pattern) {
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+function relativeTime(ms) {
+  if (!ms) return '以前に追加';
+  const diff = (Date.now() - ms) / 1000;
+  if (diff < 60) return 'たった今追加';
+  if (diff < 3600) return `${Math.floor(diff/60)}分前に追加`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}時間前に追加`;
+  if (diff < 604800) return `${Math.floor(diff/86400)}日前に追加`;
+  if (diff < 2592000) return `${Math.floor(diff/604800)}週間前に追加`;
+  return `${Math.floor(diff/2592000)}ヶ月前に追加`;
+}
+function getHistoryItems() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const items = (allCustomEvents || [])
+    .filter(e => e.type !== 'memo')
+    .map(e => ({ ...e, _dateObj: new Date(e.date + 'T00:00:00') }))
+    .sort((a, b) => a._dateObj - b._dateObj);
+  const past = items.filter(e => e._dateObj < today);
+  const future = items.filter(e => e._dateObj >= today);
+  return { past, future, today };
+}
 function eventTypeClass(summary) {
   if (A_SHIFT_LABELS.includes(summary)) return 't-A';
   if (MEETING_LABELS.includes(summary)) return 't-meeting';
@@ -2230,6 +2251,85 @@ function closeYearView() {
   yo.classList.remove('open');
   yo.setAttribute('aria-hidden', 'true');
   if (typeof releaseBodyScroll === 'function') releaseBodyScroll('year-overlay');
+}
+function openHistoryView() {
+  renderHistoryView();
+  document.getElementById('history-overlay').classList.add('open');
+  document.getElementById('history-overlay').setAttribute('aria-hidden', 'false');
+  if (typeof lockBodyScroll === 'function') lockBodyScroll('history-overlay');
+}
+function closeHistoryView() {
+  document.getElementById('history-overlay').classList.remove('open');
+  document.getElementById('history-overlay').setAttribute('aria-hidden', 'true');
+  if (typeof releaseBodyScroll === 'function') releaseBodyScroll('history-overlay');
+}
+function renderHistoryView() {
+  const { past, future, today } = getHistoryItems();
+  const body = document.getElementById('history-body');
+  const counts = document.getElementById('history-counts');
+  counts.textContent = `過去 ${past.length}件 / 未来 ${future.length}件`;
+  body.innerHTML = '';
+  const personClass = (e) => PERSON_KEY[PERSON_FROM_KEY[e.type] || '予定'] || 'custom';
+  const personLabel = (e) => PERSON_FROM_KEY[e.type] || '予定';
+  if (past.length === 0 && future.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'history-empty';
+    empty.textContent = 'まだ追加された予定はありません';
+    body.appendChild(empty);
+    return;
+  }
+  const makeCard = (e, isPast) => {
+    const wd = ['日','月','火','水','木','金','土'][e._dateObj.getDay()];
+    const dStr = `${e._dateObj.getMonth()+1}/${e._dateObj.getDate()}(${wd})`;
+    const cls = personClass(e);
+    const time = (e.start && e.end) ? `<span class="history-card-time">${e.start}〜${e.end}</span>` : '';
+    const card = document.createElement('div');
+    card.className = 'history-card' + (isPast ? ' past' : '');
+    card.innerHTML = `
+      <div class="history-card-body">
+        <div class="history-card-meta">
+          <span class="person-tag ${cls}">${personLabel(e)}</span>
+          <span class="history-card-date">${dStr}</span>
+        </div>
+        <div class="history-card-title">${escapeHtml(e.title || '(タイトルなし)')}${time}</div>
+        <div class="history-card-meta">${relativeTime(e.createdAt)}${e.desc ? ' · ' + escapeHtml(e.desc.slice(0, 40)) : ''}</div>
+      </div>
+      <button class="row-icon" data-edit="${e.id}" aria-label="編集">
+        <svg><use href="#i-edit"/></svg>
+      </button>
+    `;
+    card.onclick = () => {
+      closeHistoryView();
+      const [y, m, d] = e.date.split('-').map(Number);
+      viewYear = y; viewMonth = m - 1;
+      render();
+      setTimeout(() => openDaySheet(e.date, y, m - 1, d), 100);
+    };
+    card.querySelector('[data-edit]').onclick = (ev) => {
+      ev.stopPropagation();
+      closeHistoryView();
+      setTimeout(() => openForm(e.id), 80);
+    };
+    return card;
+  };
+  if (past.length) {
+    const title = document.createElement('div');
+    title.className = 'history-section-title';
+    title.textContent = '過去';
+    body.appendChild(title);
+    past.forEach(e => body.appendChild(makeCard(e, true)));
+  }
+  const todayBar = document.createElement('div');
+  todayBar.className = 'history-divider';
+  todayBar.textContent = `今日 ${today.getMonth()+1}/${today.getDate()}`;
+  body.appendChild(todayBar);
+  if (future.length) {
+    const title = document.createElement('div');
+    title.className = 'history-section-title';
+    title.textContent = 'これから';
+    body.appendChild(title);
+    future.forEach(e => body.appendChild(makeCard(e, false)));
+  }
 }
 function renderYearView() {
   if (yearViewYear == null) yearViewYear = viewYear;
@@ -2955,6 +3055,13 @@ async function init() {
   };
   document.getElementById('year-prev').onclick = () => { yearViewYear--; renderYearView(); };
   document.getElementById('year-next').onclick = () => { yearViewYear++; renderYearView(); };
+  const histBtn = document.getElementById('history-btn');
+  if (histBtn) histBtn.onclick = openHistoryView;
+  const histClose = document.getElementById('history-close');
+  if (histClose) histClose.onclick = closeHistoryView;
+  document.getElementById('history-overlay').onclick = e => {
+    if (e.target.id === 'history-overlay') closeHistoryView();
+  };
 
   // Swipe gestures for month nav
   let swipeStart = null;
@@ -2976,6 +3083,7 @@ async function init() {
 
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape') return;
+    if (document.getElementById('history-overlay').classList.contains('open')) { closeHistoryView(); return; }
     if (document.getElementById('year-overlay').classList.contains('open')) { closeYearView(); return; }
     else if (document.getElementById('confirm-overlay').classList.contains('open')) { _resolveConfirm(false); return; }
     const top = topMostOpenSheet();
