@@ -2563,6 +2563,9 @@ function refreshDaySheet() {
   }
   const evs = eventsForDate(key);
   const builtin = (EVENTS[key] || []);
+  // 該当月日の毎年の予定(誕生日・記念日)を抽出
+  const [_y, _m, _d] = key.split('-').map(Number);
+  const annivsForDay = (allAnniversaries || []).filter(a => a.month === _m && a.day === _d);
   if (isBothOff(builtin)) {
     const banner = document.createElement('div');
     banner.className = 'both-off-banner';
@@ -2570,7 +2573,7 @@ function refreshDaySheet() {
     body.appendChild(banner);
     body.appendChild(buildDateMemoCard(key));
   }
-  if (evs.length === 0) {
+  if (evs.length === 0 && annivsForDay.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'empty';
     empty.innerHTML = `<svg class="lily"><use href="#lily"/></svg>予定なし`;
@@ -2608,6 +2611,28 @@ function refreshDaySheet() {
       };
     });
   }
+  // 毎年の予定(誕生日・記念日など)カード
+  const typeEmoji = { birth: '🎂', anniv: '💗', other: '🌸' };
+  const typeLabel = { birth: '誕生日', anniv: '記念日', other: '毎年の予定' };
+  annivsForDay.forEach((a, idx) => {
+    const type = a.type || 'other';
+    const cls = type === 'birth' ? 'yui' : (type === 'anniv' ? 'yui' : 'custom');
+    const iconId = type === 'birth' ? 'st-cake' : (type === 'anniv' ? 'heart' : 'st-star');
+    const row = document.createElement('div');
+    row.className = 'event-row';
+    row.style.animationDelay = `${(evs.length + idx) * 50}ms`;
+    row.innerHTML = `
+      <div class="bullet ${cls}"><svg style="width:14px;height:14px;color:white;"><use href="#${iconId}"/></svg></div>
+      <div class="text-block">
+        <div class="label">${typeEmoji[type] || '🌸'} ${escapeHtml(a.name)}</div>
+        <div class="meta">
+          <span class="person-tag ${cls}">${typeLabel[type] || '毎年の予定'}</span>
+          <span>毎年 ${a.month}/${a.day}</span>
+        </div>
+      </div>
+    `;
+    body.appendChild(row);
+  });
 }
 function findDateMemo(key) {
   return allCustomEvents.find(e => e.type === 'memo' && e.date === key);
