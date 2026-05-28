@@ -1297,6 +1297,57 @@ header > * { position: relative; z-index: 1; }
 .year-swatch.half { background: var(--cheek); }
 .year-swatch.a { background: white; border: 1.5px solid #F59E0B; }
 .year-swatch.pay { background: var(--leaf); border-radius: 50%; }
+.history-section-title {
+  font-size: 13px; font-weight: 800; color: var(--muted);
+  letter-spacing: 0.06em; margin: 14px 0 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.history-divider {
+  text-align: center; font-size: 11px; font-weight: 800;
+  color: var(--cheek-deep); letter-spacing: 0.1em;
+  padding: 12px 0; position: relative;
+}
+.history-divider::before, .history-divider::after {
+  content: ''; position: absolute; top: 50%;
+  width: calc(50% - 60px); height: 1px; background: var(--border);
+}
+.history-divider::before { left: 0; }
+.history-divider::after { right: 0; }
+.history-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; background: var(--surface-soft);
+  border: 1px solid var(--border); border-radius: 14px;
+  margin-bottom: 8px;
+  transition: transform 0.15s var(--ease-spring);
+  cursor: pointer;
+}
+.history-card:active { transform: scale(0.98); }
+.history-card.past { opacity: 0.78; }
+.history-card-body { flex: 1; min-width: 0; }
+.history-card-meta {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  margin-top: 3px; display: flex; gap: 6px; align-items: center;
+}
+.history-card-date {
+  font-family: var(--font-en); font-weight: 800;
+  color: var(--text-2); font-size: 12px;
+}
+.history-card-title {
+  font-size: 14px; font-weight: 800; color: var(--text);
+  margin-top: 2px;
+}
+.history-card-time {
+  font-family: var(--font-en); font-weight: 700;
+  color: var(--muted); font-size: 12px; margin-left: 4px;
+}
+.history-empty {
+  text-align: center; padding: 32px 16px;
+  color: var(--muted); font-weight: 700;
+}
+.history-counts {
+  font-size: 12px; font-weight: 700; color: var(--muted);
+  padding: 6px 16px 8px; border-bottom: 1px solid var(--border);
+}
 </style>
 </head>
 <body>
@@ -1478,6 +1529,10 @@ header > * { position: relative; z-index: 1; }
     <button class="chip" id="year-btn" type="button" aria-label="年間ビュー" style="background:var(--surface);color:var(--text-2);border-color:var(--border);">
       <svg style="width:14px;height:14px;"><use href="#i-grid"/></svg>
       年
+    </button>
+    <button class="chip" id="history-btn" type="button" aria-label="予定リスト" style="background:var(--surface);color:var(--text-2);border-color:var(--border);">
+      <svg style="width:14px;height:14px;"><use href="#i-clock"/></svg>
+      履歴
     </button>
   </div>
 </header>
@@ -1707,6 +1762,21 @@ header > * { position: relative; z-index: 1; }
         <span class="year-leg"><span class="year-swatch pay"></span>給料日</span>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- History Sheet -->
+<div class="sheet-overlay" id="history-overlay" role="dialog" aria-modal="true" aria-labelledby="history-title" aria-hidden="true">
+  <div class="sheet" style="max-height: 92vh;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title" id="history-title">予定リスト</div>
+      <button class="icon-btn" id="history-close" aria-label="閉じる">
+        <svg><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <div class="history-counts" id="history-counts"></div>
+    <div class="sheet-body" id="history-body"></div>
   </div>
 </div>
 
@@ -2555,7 +2625,12 @@ async function saveForm() {
     document.getElementById('f-title').focus();
     return;
   }
-  const event = { date, type: formType, title, desc, start, end, reminderMin: formReminder };
+  let createdAt = Date.now();
+  if (editingId) {
+    const existing = allCustomEvents.find(e => e.id === editingId);
+    if (existing && existing.createdAt) createdAt = existing.createdAt;
+  }
+  const event = { date, type: formType, title, desc, start, end, reminderMin: formReminder, createdAt };
   if (editingId) {
     await Storage.update(editingId, event);
   } else {
