@@ -3251,6 +3251,44 @@ A_SHIFTS_FALLBACK_BY_MONTH = {
         "こうき": [2, 16, 19, 28],
         "ゆい":   [8, 13, 15, 24],
     },
+    (2026, 7): {
+        "こうき": [10, 19, 25],
+        "ゆい":   [16],
+    },
+}
+
+# 2026年7月分シフト(PDF抽出済、xlsx無いため直接埋め込む)
+# A番は上の A_SHIFTS_FALLBACK_BY_MONTH 側で処理するためここでは除外
+EXTRA_EVENTS_BY_DATE = {
+    "2026-07-01": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}],
+    "2026-07-02": [{"person": "ゆい", "summary": "希望休"}],
+    "2026-07-03": [{"person": "こうき", "summary": "出店"}],
+    "2026-07-04": [{"person": "こうき", "summary": "出店"}],
+    "2026-07-05": [{"person": "こうき", "summary": "出店"}],
+    "2026-07-06": [{"person": "こうき", "summary": "希望休"}],
+    "2026-07-07": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "会議"}],
+    "2026-07-08": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "有"}],
+    "2026-07-09": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}],
+    "2026-07-10": [{"person": "ゆい", "summary": "MTG"}],
+    "2026-07-11": [{"person": "ゆい", "summary": "休"}],
+    "2026-07-12": [{"person": "こうき", "summary": "休"}],
+    "2026-07-13": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}],
+    "2026-07-15": [{"person": "こうき", "summary": "出張"}, {"person": "ゆい", "summary": "有"}],
+    "2026-07-16": [{"person": "こうき", "summary": "希望休"}],
+    "2026-07-17": [{"person": "こうき", "summary": "休"}],
+    "2026-07-18": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}],
+    "2026-07-20": [{"person": "こうき", "summary": "会議"}],
+    "2026-07-21": [{"person": "こうき", "summary": "有"}, {"person": "ゆい", "summary": "有"}],
+    "2026-07-22": [{"person": "こうき", "summary": "休"}],
+    "2026-07-23": [{"person": "ゆい", "summary": "有"}],
+    "2026-07-24": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "希望休"}],
+    "2026-07-25": [{"person": "ゆい", "summary": "希望休"}],
+    "2026-07-26": [{"person": "こうき", "summary": "有"}, {"person": "ゆい", "summary": "希望休"}],
+    "2026-07-27": [{"person": "こうき", "summary": "会議"}],
+    "2026-07-28": [{"person": "こうき", "summary": "出店"}],
+    "2026-07-29": [{"person": "こうき", "summary": "出店"}, {"person": "ゆい", "summary": "休"}],
+    "2026-07-30": [{"person": "こうき", "summary": "休"}],
+    "2026-07-31": [{"person": "ゆい", "summary": "希望休"}],
 }
 
 
@@ -3331,6 +3369,36 @@ def main():
             if any(e.get("person") == person and e.get("summary") == "A" for e in existing):
                 continue
             existing.insert(0, {"person": person, "summary": "A"})
+
+    # 追加イベント(xlsx範囲外の月分、PDF抽出済データを直接埋め込み)
+    if EXTRA_EVENTS_BY_DATE:
+        extra_count = 0
+        for k, evs in EXTRA_EVENTS_BY_DATE.items():
+            existing = by_date.setdefault(k, [])
+            for ev in evs:
+                # 重複チェック(同person+summary)
+                if any(e.get("person") == ev["person"] and e.get("summary") == ev["summary"] for e in existing):
+                    continue
+                existing.append(ev)
+                extra_count += 1
+        # EXTRA データに含まれる月のA番(他月)も追加
+        extra_months = set()
+        for k in EXTRA_EVENTS_BY_DATE:
+            ey, em, _ = k.split("-")
+            extra_months.add((int(ey), int(em)))
+        for (ey, em) in extra_months:
+            if (ey, em) == (year, shift_month):
+                continue  # メイン月は既処理
+            extra_a = get_fallback_a_shifts(ey, em)
+            for person, dates in extra_a.items():
+                for y, m, dnum in dates:
+                    d = _dt.date(y, m, dnum)
+                    k = d.strftime("%Y-%m-%d")
+                    existing = by_date.setdefault(k, [])
+                    if any(e.get("person") == person and e.get("summary") == "A" for e in existing):
+                        continue
+                    existing.insert(0, {"person": person, "summary": "A"})
+        print(f"  info: EXTRA_EVENTS から {extra_count}件 追加({len(extra_months)}ヶ月分のA番含む)")
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     html = TEMPLATE.replace("__EVENTS_JSON__", json.dumps(by_date, ensure_ascii=False))
