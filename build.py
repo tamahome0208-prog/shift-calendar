@@ -3294,6 +3294,7 @@ function animateCount(el, target) {
 
 function spawnConfetti() {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (document.querySelector('.confetti-wrap')) return;  // rapid tap ガード
   const wrap = document.createElement('div');
   wrap.className = 'confetti-wrap';
   wrap.setAttribute('aria-hidden', 'true');
