@@ -1,0 +1,155 @@
+<h2>アニメーション強化メニュー</h2>
+<p class="subtitle">実際に動きます。気に入ったものを複数クリックしてください。</p>
+
+<style>
+  .anim-cell{background:#FFF8F0;border:1.5px solid #E5D8CC;border-radius:14px;padding:20px;text-align:center;position:relative;overflow:hidden;min-height:130px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;}
+  .anim-label{font-size:11px;font-weight:800;color:#666;letter-spacing:0.08em;text-transform:uppercase;}
+  .anim-name{font-size:14px;font-weight:900;color:#3F3227;}
+  .anim-desc{font-size:11px;color:#8B7A6B;line-height:1.5;}
+
+  /* 1. Confetti burst */
+  .confetti-demo::before,.confetti-demo::after{content:'';position:absolute;top:20%;left:50%;width:6px;height:12px;background:#F764A2;animation:confall 1.8s infinite ease-in;}
+  .confetti-demo::before{background:#84CC16;left:35%;animation-delay:0.3s;}
+  .confetti-demo::after{background:#FCD34D;left:65%;animation-delay:0.6s;}
+  @keyframes confall{0%{transform:translateY(-60px) rotate(0);opacity:0;}20%{opacity:1;}100%{transform:translateY(140px) rotate(720deg);opacity:0;}}
+
+  /* 2. Counter roll-up */
+  .count-num{font-size:32px;font-weight:900;color:#84CC16;font-family:monospace;display:inline-block;animation:countpop 2.2s infinite;}
+  @keyframes countpop{0%,20%{transform:translateY(0);}25%{transform:translateY(-8px);}30%{transform:translateY(0);}90%,100%{transform:translateY(0);}}
+
+  /* 3. Chip stagger */
+  .stagger-wrap{display:flex;gap:4px;}
+  .stagger-chip{width:34px;height:22px;border-radius:6px;background:linear-gradient(135deg,#88CDF6,#0B3B5C);animation:staggerin 2s infinite;}
+  .stagger-chip:nth-child(2){background:linear-gradient(135deg,#F764A2,#B91C5C);animation-delay:0.15s;}
+  .stagger-chip:nth-child(3){background:linear-gradient(135deg,#FCD34D,#F59E0B);animation-delay:0.3s;}
+  @keyframes staggerin{0%,60%{opacity:1;transform:translateY(0) scale(1);}70%{opacity:0;transform:translateY(6px) scale(0.85);}85%{opacity:1;transform:translateY(-2px) scale(1.08);}90%{transform:translateY(0) scale(1);}}
+
+  /* 4. Month swipe transition */
+  .swipe-frame{width:90px;height:60px;border-radius:8px;background:linear-gradient(135deg,#F764A2 20%,#84CC16 100%);position:relative;overflow:hidden;color:white;font-size:20px;font-weight:900;display:flex;align-items:center;justify-content:center;animation:swipemo 3s infinite;}
+  @keyframes swipemo{0%,15%{content:'6月';}20%{transform:translateX(-120%);}20.1%{transform:translateX(120%);}60%{transform:translateX(0);}100%{transform:translateX(0);}}
+  .swipe-frame::after{content:'7月';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;animation:swipetext 3s infinite;}
+  @keyframes swipetext{0%,19.9%{content:'6月';opacity:0;}20%{opacity:1;}}
+
+  /* 5. Heart pulse */
+  .heart-pulse{font-size:36px;animation:hpulse 1.4s infinite;transform-origin:center;}
+  @keyframes hpulse{0%,60%,100%{transform:scale(1);}70%{transform:scale(1.25);}80%{transform:scale(0.95);}90%{transform:scale(1.1);}}
+
+  /* 6. Ripple on tap */
+  .ripple-frame{width:80px;height:80px;background:#FFF3E0;border-radius:12px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;}
+  .ripple-frame::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:rgba(247,100,162,0.4);animation:ripplex 1.8s infinite;}
+  @keyframes ripplex{0%{transform:scale(0);opacity:1;}80%{transform:scale(8);opacity:0;}100%{opacity:0;}}
+
+  /* 7. Anniv wiggle */
+  .wig-chip{background:linear-gradient(135deg,#F764A2,#B91C5C);color:white;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:900;display:inline-flex;align-items:center;gap:4px;animation:wig 2s infinite;transform-origin:center;}
+  @keyframes wig{0%,70%,100%{transform:rotate(0);}75%{transform:rotate(-6deg);}82%{transform:rotate(5deg);}88%{transform:rotate(-3deg);}94%{transform:rotate(0);}}
+
+  /* 8. Sparkle trail */
+  .spark{position:absolute;font-size:12px;animation:sparkfloat 2s infinite;}
+  .spark:nth-child(1){top:20%;left:20%;animation-delay:0s;}
+  .spark:nth-child(2){top:60%;left:70%;animation-delay:0.5s;}
+  .spark:nth-child(3){top:35%;left:80%;animation-delay:1s;}
+  @keyframes sparkfloat{0%{opacity:0;transform:translateY(0) scale(0.6);}30%{opacity:1;transform:translateY(-10px) scale(1);}100%{opacity:0;transform:translateY(-25px) scale(0.3);}}
+</style>
+
+<div class="options" data-multiselect>
+
+  <div class="option" data-choice="confetti" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <div class="anim-cell confetti-demo" style="background:#FFE4E1;">
+        <span style="font-size:32px;">💗</span>
+        <div class="anim-name">紙吹雪バースト</div>
+      </div>
+      <p style="margin-top:8px;">休み被り日をタップした瞬間、画面上方から色紙が降る。1.5秒で消える。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="counter" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <div class="anim-cell">
+        <span class="anim-label">今月の被り</span>
+        <span class="count-num">6</span>
+        <span style="font-size:12px;">日</span>
+      </div>
+      <p style="margin-top:8px;">サマリーカードの数字が0→6にカウントアップ。月切替のたびに演出。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="stagger" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <div class="anim-cell">
+        <div class="stagger-wrap">
+          <div class="stagger-chip"></div>
+          <div class="stagger-chip"></div>
+          <div class="stagger-chip"></div>
+        </div>
+        <div class="anim-name" style="margin-top:8px;">チップ順次登場</div>
+      </div>
+      <p style="margin-top:8px;">月切替時、セルのチップが左から順に沸き上がる。今は既に一部あるが強化。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="swipe" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <div class="anim-cell">
+        <div class="swipe-frame">
+          <span style="position:absolute;">6→7</span>
+        </div>
+      </div>
+      <p style="margin-top:8px;">月ヘッダーが横にスライドしながら次の月へ切替。季節色が滲むように混ざる。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="heart" onclick="toggleSelect(this)">
+    <div class="letter">E</div>
+    <div class="content">
+      <div class="anim-cell">
+        <span class="heart-pulse">💗</span>
+        <div class="anim-name">ハートくっと</div>
+      </div>
+      <p style="margin-top:8px;">ヒーローカードの記念日ハートが定期的にくっとポンプするような鼓動アニメ。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="ripple" onclick="toggleSelect(this)">
+    <div class="letter">F</div>
+    <div class="content">
+      <div class="anim-cell">
+        <div class="ripple-frame">📅</div>
+      </div>
+      <p style="margin-top:8px;">セルをタップした瞬間、そこから円が広がる波紋エフェクト。Material的な触覚感。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="wiggle" onclick="toggleSelect(this)">
+    <div class="letter">G</div>
+    <div class="content">
+      <div class="anim-cell">
+        <span class="wig-chip">💗 記念日</span>
+      </div>
+      <p style="margin-top:8px;">記念日チップだけがときどき左右にくねっと揺れる。誕生日は🎂ケーキが揺れる。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="sparkle" onclick="toggleSelect(this)">
+    <div class="letter">H</div>
+    <div class="content">
+      <div class="anim-cell" style="background:linear-gradient(135deg,#FFF3E0,#FFE4E1);">
+        <div class="spark">✨</div>
+        <div class="spark">💗</div>
+        <div class="spark">✨</div>
+        <span class="anim-name" style="position:relative;">キラキラ舞う</span>
+      </div>
+      <p style="margin-top:8px;">シーズンアクセントの月ヘッダー背景に、微かなキラキラ粒子がゆらり。桜/雪などとも合う。</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:24px;text-align:center;">
+気に入ったもの複数OK。<br>
+「全部」と言えばこの8個全部盛り込みます(実装ボリューム大)。
+</p>

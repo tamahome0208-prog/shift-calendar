@@ -1355,6 +1355,115 @@ header > * { position: relative; z-index: 1; }
 .anniv-chip.t-birth { background: linear-gradient(135deg, var(--cheek) 0%, var(--cheek-deep) 100%); }
 .anniv-chip.t-anniv { background: linear-gradient(135deg, var(--yui) 0%, var(--yui-meeting) 100%); }
 .anniv-chip.t-other { background: linear-gradient(135deg, var(--custom) 0%, #A372C6 100%); }
+
+/* v10 F2: 月間サマリーカード */
+.month-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 8px 12px 12px;
+}
+.summary-card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 10px 8px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  position: relative;
+  overflow: hidden;
+}
+.summary-card.k { background: linear-gradient(135deg, var(--kouki) 0%, var(--pond-dark) 110%); }
+.summary-card.y { background: linear-gradient(135deg, var(--yui) 0%, var(--yui-meeting) 110%); }
+.summary-card.both { background: linear-gradient(135deg, var(--leaf) 0%, var(--leaf-dark) 110%); }
+.summary-title {
+  font-size: 10px;
+  font-weight: 800;
+  opacity: 0.92;
+  letter-spacing: 0.02em;
+}
+.summary-value {
+  font-family: var(--font-en);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  margin: 4px 0 2px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+.summary-unit {
+  font-size: 9.5px;
+  font-weight: 700;
+  opacity: 0.88;
+}
+
+/* v10 F1: 紙吹雪バースト */
+.confetti-wrap {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute;
+  top: -20px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  animation: conf-fall 1.5s cubic-bezier(0.55, 0.05, 0.6, 0.4) forwards;
+  opacity: 0;
+}
+@keyframes conf-fall {
+  0% { opacity: 0; transform: translateY(-20px) rotate(0deg); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(110vh) rotate(720deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece { animation: none; opacity: 0; }
+}
+
+/* v10 F3: 月別シーズンアクセント */
+header {
+  transition: background 0.6s ease;
+  position: relative;
+  overflow: hidden;
+}
+.season-particle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.75) 0%, transparent 65%);
+  pointer-events: none;
+  animation: sparkle 2.6s ease-in-out infinite;
+}
+.season-particle.p1 { top: 22%; left: 15%; animation-delay: 0s; }
+.season-particle.p2 { top: 58%; left: 78%; animation-delay: 0.9s; width: 14px; height: 14px; }
+.season-particle.p3 { top: 40%; left: 92%; animation-delay: 1.7s; width: 22px; height: 22px; }
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 0.85; transform: scale(1); }
+}
+
+/* v10 Anim D: 月ヘッダー横スライド */
+.top-row.slide-out-left { animation: slideOutLeft 0.28s ease both; }
+.top-row.slide-out-right { animation: slideOutRight 0.28s ease both; }
+.top-row.slide-in-left { animation: slideInLeft 0.28s ease both; }
+.top-row.slide-in-right { animation: slideInRight 0.28s ease both; }
+@keyframes slideOutLeft  { to { opacity: 0; transform: translateX(-16px); } }
+@keyframes slideOutRight { to { opacity: 0; transform: translateX(16px); } }
+@keyframes slideInLeft   { from { opacity: 0; transform: translateX(16px); } }
+@keyframes slideInRight  { from { opacity: 0; transform: translateX(-16px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  header { transition: none; }
+  .season-particle { animation: none; opacity: 0; }
+  .top-row.slide-out-left,
+  .top-row.slide-out-right,
+  .top-row.slide-in-left,
+  .top-row.slide-in-right { animation: none; }
+}
 </style>
 </head>
 <body>
@@ -1517,6 +1626,9 @@ header > * { position: relative; z-index: 1; }
   <div class="header-deco" aria-hidden="true">
     <svg class="deco-cloud-1"><use href="#deco-cloud"/></svg>
     <svg class="deco-leaf-1"><use href="#deco-leaf-small"/></svg>
+    <div class="season-particle p1"></div>
+    <div class="season-particle p2"></div>
+    <div class="season-particle p3"></div>
   </div>
   <div class="top-row">
     <div class="title-block">
@@ -1533,6 +1645,23 @@ header > * { position: relative; z-index: 1; }
     <button class="icon-btn" id="next" aria-label="次月">
       <svg><use href="#i-right"/></svg>
     </button>
+  </div>
+  <div class="month-summary" id="month-summary" aria-label="今月のサマリー">
+    <div class="summary-card k">
+      <div class="summary-title">こうき</div>
+      <div class="summary-value" id="sum-k">0</div>
+      <div class="summary-unit">出勤日</div>
+    </div>
+    <div class="summary-card y">
+      <div class="summary-title">ゆい</div>
+      <div class="summary-value" id="sum-y">0</div>
+      <div class="summary-unit">出勤日</div>
+    </div>
+    <div class="summary-card both">
+      <div class="summary-title">被り 💗</div>
+      <div class="summary-value" id="sum-both">0</div>
+      <div class="summary-unit">日</div>
+    </div>
   </div>
   <div class="filters" role="group" aria-label="表示フィルター">
     <div class="chip active" data-key="kouki" role="switch" aria-checked="true" tabindex="0"><span class="dot"></span>こうき</div>
@@ -2402,6 +2531,8 @@ function renderYearView() {
 function render() {
   document.getElementById('year-label').textContent = `${viewYear}`;
   document.getElementById('month-num').textContent = `${viewMonth+1}`;
+  renderSummary();
+  applySeasonTheme();
   const first = new Date(viewYear, viewMonth, 1);
   const startWeekday = first.getDay();
   const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
@@ -2569,6 +2700,7 @@ function refreshDaySheet() {
   const [_y, _m, _d] = key.split('-').map(Number);
   const annivsForDay = (allAnniversaries || []).filter(a => a.month === _m && a.day === _d);
   if (isBothOff(builtin)) {
+    spawnConfetti();
     const banner = document.createElement('div');
     banner.className = 'both-off-banner';
     banner.innerHTML = `<svg><use href="#heart"/></svg><span>二人ともお休み 💗</span>`;
@@ -3151,12 +3283,115 @@ async function init() {
 
   scheduleReminders();
 }
+const SEASON_THEMES = {
+  1:  'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+  2:  'linear-gradient(135deg, #FEE7EF 0%, #FCE7F3 100%)',
+  3:  'linear-gradient(135deg, #FEE7EF 0%, #FBCFE8 100%)',
+  4:  'linear-gradient(135deg, #FFE4E1 0%, #FBCFE8 100%)',
+  5:  'linear-gradient(135deg, #ECFCCB 0%, #D9F99D 100%)',
+  6:  'linear-gradient(135deg, #DBEAFE 0%, #C7D2FE 100%)',
+  7:  'linear-gradient(135deg, #FEF9C3 0%, #FEF3C7 100%)',
+  8:  'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)',
+  9:  'linear-gradient(135deg, #FEF3C7 0%, #FDBA74 100%)',
+  10: 'linear-gradient(135deg, #FFE4E1 0%, #FED7AA 100%)',
+  11: 'linear-gradient(135deg, #FEF3C7 0%, #FCD34D 100%)',
+  12: 'linear-gradient(135deg, #DBEAFE 0%, #E0F2FE 100%)',
+};
+function applySeasonTheme() {
+  const m = viewMonth + 1;
+  const bg = SEASON_THEMES[m];
+  if (bg) document.querySelector('header').style.background = bg;
+}
+const OFF_LABELS = new Set(['休', '希望休', '有']);
+function renderSummary() {
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const kOff = new Set(), yOff = new Set();
+  for (const [key, evs] of Object.entries(EVENTS)) {
+    if (!key.startsWith(`${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-`)) continue;
+    for (const e of evs) {
+      if (!OFF_LABELS.has(e.summary)) continue;
+      if (e.person === 'こうき') kOff.add(key);
+      else if (e.person === 'ゆい') yOff.add(key);
+    }
+  }
+  const kWork = daysInMonth - kOff.size;
+  const yWork = daysInMonth - yOff.size;
+  let bothCount = 0;
+  for (const k of kOff) if (yOff.has(k)) bothCount++;
+  animateCount(document.getElementById('sum-k'), kWork);
+  animateCount(document.getElementById('sum-y'), yWork);
+  animateCount(document.getElementById('sum-both'), bothCount);
+}
+
+function animateCount(el, target) {
+  if (!el) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = target;
+    return;
+  }
+  const start = parseInt(el.textContent, 10) || 0;
+  const dur = 600;
+  const t0 = performance.now();
+  function step(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(start + (target - start) * eased);
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function spawnConfetti() {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (document.querySelector('.confetti-wrap')) return;  // rapid tap ガード
+  const wrap = document.createElement('div');
+  wrap.className = 'confetti-wrap';
+  wrap.setAttribute('aria-hidden', 'true');
+  const colors = ['#F764A2', '#84CC16', '#FCD34D', '#88CDF6', '#B593D6'];
+  for (let i = 0; i < 36; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.left = `${Math.random() * 100}%`;
+    p.style.background = colors[i % colors.length];
+    p.style.animationDelay = `${Math.random() * 0.3}s`;
+    p.style.transform = `rotate(${Math.random() * 360}deg)`;
+    wrap.appendChild(p);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 1900);
+}
+
+let pendingShiftOut = null;
+let pendingShiftIn = null;
 function shift(delta) {
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const topRow = document.querySelector('.top-row');
   viewMonth += delta;
   if (viewMonth < 0) { viewMonth = 11; viewYear--; }
   if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-  render();
-  saveLastView();
+  if (!topRow || reduced) {
+    render();
+    saveLastView();
+    return;
+  }
+  // 前回の未完了タイマーとクラスを一掃(連打時の残留対策)
+  if (pendingShiftOut) { clearTimeout(pendingShiftOut); pendingShiftOut = null; }
+  if (pendingShiftIn) { clearTimeout(pendingShiftIn); pendingShiftIn = null; }
+  topRow.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right');
+  const outCls = delta > 0 ? 'slide-out-left' : 'slide-out-right';
+  const inCls  = delta > 0 ? 'slide-in-right' : 'slide-in-left';
+  topRow.classList.add(outCls);
+  pendingShiftOut = setTimeout(() => {
+    pendingShiftOut = null;
+    render();
+    saveLastView();
+    topRow.classList.remove(outCls);
+    topRow.classList.add(inCls);
+    pendingShiftIn = setTimeout(() => {
+      pendingShiftIn = null;
+      topRow.classList.remove(inCls);
+    }, 300);
+  }, 260);
 }
 
 init();

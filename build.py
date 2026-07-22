@@ -3377,6 +3377,8 @@ function spawnConfetti() {
   setTimeout(() => wrap.remove(), 1900);
 }
 
+let pendingShiftOut = null;
+let pendingShiftIn = null;
 function shift(delta) {
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const topRow = document.querySelector('.top-row');
@@ -3388,15 +3390,23 @@ function shift(delta) {
     saveLastView();
     return;
   }
+  // 前回の未完了タイマーとクラスを一掃(連打時の残留対策)
+  if (pendingShiftOut) { clearTimeout(pendingShiftOut); pendingShiftOut = null; }
+  if (pendingShiftIn) { clearTimeout(pendingShiftIn); pendingShiftIn = null; }
+  topRow.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right');
   const outCls = delta > 0 ? 'slide-out-left' : 'slide-out-right';
   const inCls  = delta > 0 ? 'slide-in-right' : 'slide-in-left';
   topRow.classList.add(outCls);
-  setTimeout(() => {
+  pendingShiftOut = setTimeout(() => {
+    pendingShiftOut = null;
     render();
     saveLastView();
     topRow.classList.remove(outCls);
     topRow.classList.add(inCls);
-    setTimeout(() => topRow.classList.remove(inCls), 300);
+    pendingShiftIn = setTimeout(() => {
+      pendingShiftIn = null;
+      topRow.classList.remove(inCls);
+    }, 300);
   }, 260);
 }
 
