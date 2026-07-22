@@ -1371,6 +1371,73 @@ header > * { position: relative; z-index: 1; }
 .anniv-chip.t-birth { background: linear-gradient(135deg, var(--cheek) 0%, var(--cheek-deep) 100%); }
 .anniv-chip.t-anniv { background: linear-gradient(135deg, var(--yui) 0%, var(--yui-meeting) 100%); }
 .anniv-chip.t-other { background: linear-gradient(135deg, var(--custom) 0%, #A372C6 100%); }
+
+/* v10 F2: 月間サマリーカード */
+.month-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 8px 12px 12px;
+}
+.summary-card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 10px 8px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  position: relative;
+  overflow: hidden;
+}
+.summary-card.k { background: linear-gradient(135deg, var(--kouki) 0%, var(--pond-dark) 110%); }
+.summary-card.y { background: linear-gradient(135deg, var(--yui) 0%, var(--yui-meeting) 110%); }
+.summary-card.both { background: linear-gradient(135deg, var(--leaf) 0%, var(--leaf-dark) 110%); }
+.summary-title {
+  font-size: 10px;
+  font-weight: 800;
+  opacity: 0.92;
+  letter-spacing: 0.02em;
+}
+.summary-value {
+  font-family: var(--font-en);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  margin: 4px 0 2px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+.summary-unit {
+  font-size: 9.5px;
+  font-weight: 700;
+  opacity: 0.88;
+}
+
+/* v10 F1: 紙吹雪バースト */
+.confetti-wrap {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute;
+  top: -20px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  animation: conf-fall 1.5s cubic-bezier(0.55, 0.05, 0.6, 0.4) forwards;
+  opacity: 0;
+}
+@keyframes conf-fall {
+  0% { opacity: 0; transform: translateY(-20px) rotate(0deg); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(110vh) rotate(720deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece { animation: none; opacity: 0; }
+}
 </style>
 </head>
 <body>
@@ -1549,6 +1616,23 @@ header > * { position: relative; z-index: 1; }
     <button class="icon-btn" id="next" aria-label="次月">
       <svg><use href="#i-right"/></svg>
     </button>
+  </div>
+  <div class="month-summary" id="month-summary" aria-label="今月のサマリー">
+    <div class="summary-card k">
+      <div class="summary-title">こうき</div>
+      <div class="summary-value" id="sum-k">0</div>
+      <div class="summary-unit">出勤日</div>
+    </div>
+    <div class="summary-card y">
+      <div class="summary-title">ゆい</div>
+      <div class="summary-value" id="sum-y">0</div>
+      <div class="summary-unit">出勤日</div>
+    </div>
+    <div class="summary-card both">
+      <div class="summary-title">被り 💗</div>
+      <div class="summary-value" id="sum-both">0</div>
+      <div class="summary-unit">日</div>
+    </div>
   </div>
   <div class="filters" role="group" aria-label="表示フィルター">
     <div class="chip active" data-key="kouki" role="switch" aria-checked="true" tabindex="0"><span class="dot"></span>こうき</div>
@@ -2418,6 +2502,7 @@ function renderYearView() {
 function render() {
   document.getElementById('year-label').textContent = `${viewYear}`;
   document.getElementById('month-num').textContent = `${viewMonth+1}`;
+  renderSummary();
   const first = new Date(viewYear, viewMonth, 1);
   const startWeekday = first.getDay();
   const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
@@ -2585,6 +2670,7 @@ function refreshDaySheet() {
   const [_y, _m, _d] = key.split('-').map(Number);
   const annivsForDay = (allAnniversaries || []).filter(a => a.month === _m && a.day === _d);
   if (isBothOff(builtin)) {
+    spawnConfetti();
     const banner = document.createElement('div');
     banner.className = 'both-off-banner';
     banner.innerHTML = `<svg><use href="#heart"/></svg><span>二人ともお休み 💗</span>`;
@@ -3167,6 +3253,64 @@ async function init() {
 
   scheduleReminders();
 }
+const OFF_LABELS = new Set(['休', '希望休', '有']);
+function renderSummary() {
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const kOff = new Set(), yOff = new Set();
+  for (const [key, evs] of Object.entries(EVENTS)) {
+    if (!key.startsWith(`${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-`)) continue;
+    for (const e of evs) {
+      if (!OFF_LABELS.has(e.summary)) continue;
+      if (e.person === 'こうき') kOff.add(key);
+      else if (e.person === 'ゆい') yOff.add(key);
+    }
+  }
+  const kWork = daysInMonth - kOff.size;
+  const yWork = daysInMonth - yOff.size;
+  let bothCount = 0;
+  for (const k of kOff) if (yOff.has(k)) bothCount++;
+  animateCount(document.getElementById('sum-k'), kWork);
+  animateCount(document.getElementById('sum-y'), yWork);
+  animateCount(document.getElementById('sum-both'), bothCount);
+}
+
+function animateCount(el, target) {
+  if (!el) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = target;
+    return;
+  }
+  const start = parseInt(el.textContent, 10) || 0;
+  const dur = 600;
+  const t0 = performance.now();
+  function step(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(start + (target - start) * eased);
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function spawnConfetti() {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'confetti-wrap';
+  wrap.setAttribute('aria-hidden', 'true');
+  const colors = ['#F764A2', '#84CC16', '#FCD34D', '#88CDF6', '#B593D6'];
+  for (let i = 0; i < 36; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.left = `${Math.random() * 100}%`;
+    p.style.background = colors[i % colors.length];
+    p.style.animationDelay = `${Math.random() * 0.3}s`;
+    p.style.transform = `rotate(${Math.random() * 360}deg)`;
+    wrap.appendChild(p);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 1900);
+}
+
 function shift(delta) {
   viewMonth += delta;
   if (viewMonth < 0) { viewMonth = 11; viewYear--; }
