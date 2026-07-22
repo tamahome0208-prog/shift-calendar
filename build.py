@@ -1480,6 +1480,64 @@ header {
   .top-row.slide-in-left,
   .top-row.slide-in-right { animation: none; }
 }
+
+/* v10 Anim C: セル順次登場 */
+.cell.cell-rise {
+  animation: cellRise 0.45s var(--ease-spring) both;
+}
+@keyframes cellRise {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* v10 Anim E: ヒーローハート鼓動 */
+.hero-card .heart-beat {
+  animation: heartBeat 2.2s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes heartBeat {
+  0%, 60%, 100% { transform: scale(1); }
+  70% { transform: scale(1.2); }
+  80% { transform: scale(0.95); }
+  90% { transform: scale(1.1); }
+}
+
+/* v10 Anim F: セルタップ波紋 */
+.cell { position: relative; }
+.cell-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(247, 100, 162, 0.35);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0);
+  animation: ripple 0.55s ease-out forwards;
+  z-index: 1;
+}
+@keyframes ripple {
+  from { transform: translate(-50%, -50%) scale(0); opacity: 0.55; }
+  to   { transform: translate(-50%, -50%) scale(10); opacity: 0; }
+}
+
+/* v10 Anim G: 記念日くねくね */
+.anniv-chip {
+  animation: annivWiggle 4s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes annivWiggle {
+  0%, 88%, 100% { transform: rotate(0); }
+  90% { transform: rotate(-4deg); }
+  94% { transform: rotate(3deg); }
+  97% { transform: rotate(-1deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell.cell-rise,
+  .hero-card .heart-beat,
+  .cell-ripple,
+  .anniv-chip { animation: none; }
+}
 </style>
 </head>
 <body>
@@ -2564,6 +2622,7 @@ function render() {
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.style.animationDelay = `${Math.min(i * 18, 540)}ms`;
+    cell.classList.add('cell-rise');
     let y, m, d;
     if (i < startWeekday) {
       d = prevDays - startWeekday + i + 1;
@@ -2666,7 +2725,18 @@ function render() {
     cell.setAttribute('role', 'button');
     cell.setAttribute('tabindex', '0');
     cell.setAttribute('aria-label', `${y}年${m+1}月${d}日`);
-    cell.onclick = () => { haptic(15); openDaySheet(key, y, m, d); };
+    cell.onclick = (ev) => {
+      if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const rect = cell.getBoundingClientRect();
+        const r = document.createElement('span');
+        r.className = 'cell-ripple';
+        r.style.left = `${ev.clientX - rect.left}px`;
+        r.style.top = `${ev.clientY - rect.top}px`;
+        cell.appendChild(r);
+        setTimeout(() => r.remove(), 600);
+      }
+      haptic(15); openDaySheet(key, y, m, d);
+    };
     cell.onkeydown = (ev) => {
       if (ev.key === 'Enter' || ev.key === ' ') {
         ev.preventDefault();
