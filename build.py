@@ -1438,6 +1438,48 @@ header > * { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) {
   .confetti-piece { animation: none; opacity: 0; }
 }
+
+/* v10 F3: 月別シーズンアクセント */
+header {
+  transition: background 0.6s ease;
+  position: relative;
+  overflow: hidden;
+}
+.season-particle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.75) 0%, transparent 65%);
+  pointer-events: none;
+  animation: sparkle 2.6s ease-in-out infinite;
+}
+.season-particle.p1 { top: 22%; left: 15%; animation-delay: 0s; }
+.season-particle.p2 { top: 58%; left: 78%; animation-delay: 0.9s; width: 14px; height: 14px; }
+.season-particle.p3 { top: 40%; left: 92%; animation-delay: 1.7s; width: 22px; height: 22px; }
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 0.85; transform: scale(1); }
+}
+
+/* v10 Anim D: 月ヘッダー横スライド */
+.top-row.slide-out-left { animation: slideOutLeft 0.28s ease both; }
+.top-row.slide-out-right { animation: slideOutRight 0.28s ease both; }
+.top-row.slide-in-left { animation: slideInLeft 0.28s ease both; }
+.top-row.slide-in-right { animation: slideInRight 0.28s ease both; }
+@keyframes slideOutLeft  { to { opacity: 0; transform: translateX(-16px); } }
+@keyframes slideOutRight { to { opacity: 0; transform: translateX(16px); } }
+@keyframes slideInLeft   { from { opacity: 0; transform: translateX(16px); } }
+@keyframes slideInRight  { from { opacity: 0; transform: translateX(-16px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  header { transition: none; }
+  .season-particle { animation: none; opacity: 0; }
+  .top-row.slide-out-left,
+  .top-row.slide-out-right,
+  .top-row.slide-in-left,
+  .top-row.slide-in-right { animation: none; }
+}
 </style>
 </head>
 <body>
@@ -1600,6 +1642,9 @@ header > * { position: relative; z-index: 1; }
   <div class="header-deco" aria-hidden="true">
     <svg class="deco-cloud-1"><use href="#deco-cloud"/></svg>
     <svg class="deco-leaf-1"><use href="#deco-leaf-small"/></svg>
+    <div class="season-particle p1"></div>
+    <div class="season-particle p2"></div>
+    <div class="season-particle p3"></div>
   </div>
   <div class="top-row">
     <div class="title-block">
@@ -2503,6 +2548,7 @@ function render() {
   document.getElementById('year-label').textContent = `${viewYear}`;
   document.getElementById('month-num').textContent = `${viewMonth+1}`;
   renderSummary();
+  applySeasonTheme();
   const first = new Date(viewYear, viewMonth, 1);
   const startWeekday = first.getDay();
   const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
@@ -3253,6 +3299,25 @@ async function init() {
 
   scheduleReminders();
 }
+const SEASON_THEMES = {
+  1:  'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+  2:  'linear-gradient(135deg, #FEE7EF 0%, #FCE7F3 100%)',
+  3:  'linear-gradient(135deg, #FEE7EF 0%, #FBCFE8 100%)',
+  4:  'linear-gradient(135deg, #FFE4E1 0%, #FBCFE8 100%)',
+  5:  'linear-gradient(135deg, #ECFCCB 0%, #D9F99D 100%)',
+  6:  'linear-gradient(135deg, #DBEAFE 0%, #C7D2FE 100%)',
+  7:  'linear-gradient(135deg, #FEF9C3 0%, #FEF3C7 100%)',
+  8:  'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)',
+  9:  'linear-gradient(135deg, #FEF3C7 0%, #FDBA74 100%)',
+  10: 'linear-gradient(135deg, #FFE4E1 0%, #FED7AA 100%)',
+  11: 'linear-gradient(135deg, #FEF3C7 0%, #FCD34D 100%)',
+  12: 'linear-gradient(135deg, #DBEAFE 0%, #E0F2FE 100%)',
+};
+function applySeasonTheme() {
+  const m = viewMonth + 1;
+  const bg = SEASON_THEMES[m];
+  if (bg) document.querySelector('header').style.background = bg;
+}
 const OFF_LABELS = new Set(['休', '希望休', '有']);
 function renderSummary() {
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -3313,11 +3378,26 @@ function spawnConfetti() {
 }
 
 function shift(delta) {
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const topRow = document.querySelector('.top-row');
   viewMonth += delta;
   if (viewMonth < 0) { viewMonth = 11; viewYear--; }
   if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-  render();
-  saveLastView();
+  if (!topRow || reduced) {
+    render();
+    saveLastView();
+    return;
+  }
+  const outCls = delta > 0 ? 'slide-out-left' : 'slide-out-right';
+  const inCls  = delta > 0 ? 'slide-in-right' : 'slide-in-left';
+  topRow.classList.add(outCls);
+  setTimeout(() => {
+    render();
+    saveLastView();
+    topRow.classList.remove(outCls);
+    topRow.classList.add(inCls);
+    setTimeout(() => topRow.classList.remove(inCls), 300);
+  }, 260);
 }
 
 init();
