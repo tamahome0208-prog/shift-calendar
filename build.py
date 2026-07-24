@@ -48,6 +48,9 @@ TEMPLATE = r"""<!DOCTYPE html>
   --peach: #FFB892;
   --peach-deep: #FF8E5C;
   --sunshine: #FBBF24;
+  /* Kawaii pastel accent (次サイクルで UI に適用予定) */
+  --mint-accent: #A7F3D0;
+  --butter: #FEF3C7;
 
   /* 機能色 - Cozy Cream Canvas */
   --bg: #FFF8F0;
@@ -1389,9 +1392,9 @@ header > * { position: relative; z-index: 1; }
   position: relative;
   overflow: hidden;
 }
-.summary-card.k { background: linear-gradient(135deg, var(--kouki) 0%, var(--pond-dark) 110%); }
-.summary-card.y { background: linear-gradient(135deg, var(--yui) 0%, var(--yui-meeting) 110%); }
-.summary-card.both { background: linear-gradient(135deg, var(--leaf) 0%, var(--leaf-dark) 110%); }
+.summary-card.k { background: linear-gradient(135deg, var(--kouki-meeting) 0%, #1B5577 110%); }
+.summary-card.y { background: linear-gradient(135deg, var(--yui-meeting) 0%, #B91C5C 110%); }
+.summary-card.both { background: linear-gradient(135deg, var(--leaf-dark) 0%, var(--leaf-deep) 110%); }
 .summary-title {
   font-size: 10px;
   font-weight: 800;
@@ -3391,9 +3394,20 @@ function applySeasonTheme() {
 const OFF_LABELS = new Set(['休', '希望休', '有']);
 function renderSummary() {
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const monthPrefix = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-`;
+  const hasMonthData = Object.keys(EVENTS).some(k => k.startsWith(monthPrefix));
+  const sumK = document.getElementById('sum-k');
+  const sumY = document.getElementById('sum-y');
+  const sumBoth = document.getElementById('sum-both');
+  if (!hasMonthData) {
+    if (sumK) sumK.textContent = '—';
+    if (sumY) sumY.textContent = '—';
+    if (sumBoth) sumBoth.textContent = '—';
+    return;
+  }
   const kOff = new Set(), yOff = new Set();
   for (const [key, evs] of Object.entries(EVENTS)) {
-    if (!key.startsWith(`${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-`)) continue;
+    if (!key.startsWith(monthPrefix)) continue;
     for (const e of evs) {
       if (!OFF_LABELS.has(e.summary)) continue;
       if (e.person === 'こうき') kOff.add(key);
@@ -3404,9 +3418,9 @@ function renderSummary() {
   const yWork = daysInMonth - yOff.size;
   let bothCount = 0;
   for (const k of kOff) if (yOff.has(k)) bothCount++;
-  animateCount(document.getElementById('sum-k'), kWork);
-  animateCount(document.getElementById('sum-y'), yWork);
-  animateCount(document.getElementById('sum-both'), bothCount);
+  animateCount(sumK, kWork);
+  animateCount(sumY, yWork);
+  animateCount(sumBoth, bothCount);
 }
 
 function animateCount(el, target) {

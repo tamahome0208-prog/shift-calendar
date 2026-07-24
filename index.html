@@ -32,6 +32,9 @@
   --peach: #FFB892;
   --peach-deep: #FF8E5C;
   --sunshine: #FBBF24;
+  /* Kawaii pastel accent (次サイクルで UI に適用予定) */
+  --mint-accent: #A7F3D0;
+  --butter: #FEF3C7;
 
   /* 機能色 - Cozy Cream Canvas */
   --bg: #FFF8F0;
@@ -1373,9 +1376,9 @@ header > * { position: relative; z-index: 1; }
   position: relative;
   overflow: hidden;
 }
-.summary-card.k { background: linear-gradient(135deg, var(--kouki) 0%, var(--pond-dark) 110%); }
-.summary-card.y { background: linear-gradient(135deg, var(--yui) 0%, var(--yui-meeting) 110%); }
-.summary-card.both { background: linear-gradient(135deg, var(--leaf) 0%, var(--leaf-dark) 110%); }
+.summary-card.k { background: linear-gradient(135deg, var(--kouki-meeting) 0%, #1B5577 110%); }
+.summary-card.y { background: linear-gradient(135deg, var(--yui-meeting) 0%, #B91C5C 110%); }
+.summary-card.both { background: linear-gradient(135deg, var(--leaf-dark) 0%, var(--leaf-deep) 110%); }
 .summary-title {
   font-size: 10px;
   font-weight: 800;
@@ -1463,6 +1466,64 @@ header {
   .top-row.slide-out-right,
   .top-row.slide-in-left,
   .top-row.slide-in-right { animation: none; }
+}
+
+/* v10 Anim C: セル順次登場 */
+.cell.cell-rise {
+  animation: cellRise 0.45s var(--ease-spring) both;
+}
+@keyframes cellRise {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* v10 Anim E: ヒーローハート鼓動 */
+.hero-card .heart-beat {
+  animation: heartBeat 2.2s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes heartBeat {
+  0%, 60%, 100% { transform: scale(1); }
+  70% { transform: scale(1.2); }
+  80% { transform: scale(0.95); }
+  90% { transform: scale(1.1); }
+}
+
+/* v10 Anim F: セルタップ波紋 */
+.cell { position: relative; }
+.cell-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(247, 100, 162, 0.35);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0);
+  animation: ripple 0.55s ease-out forwards;
+  z-index: 1;
+}
+@keyframes ripple {
+  from { transform: translate(-50%, -50%) scale(0); opacity: 0.55; }
+  to   { transform: translate(-50%, -50%) scale(10); opacity: 0; }
+}
+
+/* v10 Anim G: 記念日くねくね */
+.anniv-chip {
+  animation: annivWiggle 4s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes annivWiggle {
+  0%, 88%, 100% { transform: rotate(0); }
+  90% { transform: rotate(-4deg); }
+  94% { transform: rotate(3deg); }
+  97% { transform: rotate(-1deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell.cell-rise,
+  .hero-card .heart-beat,
+  .cell-ripple,
+  .anniv-chip { animation: none; }
 }
 </style>
 </head>
@@ -2548,6 +2609,7 @@ function render() {
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.style.animationDelay = `${Math.min(i * 18, 540)}ms`;
+    cell.classList.add('cell-rise');
     let y, m, d;
     if (i < startWeekday) {
       d = prevDays - startWeekday + i + 1;
@@ -2650,7 +2712,18 @@ function render() {
     cell.setAttribute('role', 'button');
     cell.setAttribute('tabindex', '0');
     cell.setAttribute('aria-label', `${y}年${m+1}月${d}日`);
-    cell.onclick = () => { haptic(15); openDaySheet(key, y, m, d); };
+    cell.onclick = (ev) => {
+      if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const rect = cell.getBoundingClientRect();
+        const r = document.createElement('span');
+        r.className = 'cell-ripple';
+        r.style.left = `${ev.clientX - rect.left}px`;
+        r.style.top = `${ev.clientY - rect.top}px`;
+        cell.appendChild(r);
+        setTimeout(() => r.remove(), 600);
+      }
+      haptic(15); openDaySheet(key, y, m, d);
+    };
     cell.onkeydown = (ev) => {
       if (ev.key === 'Enter' || ev.key === ' ') {
         ev.preventDefault();
@@ -3305,9 +3378,20 @@ function applySeasonTheme() {
 const OFF_LABELS = new Set(['休', '希望休', '有']);
 function renderSummary() {
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const monthPrefix = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-`;
+  const hasMonthData = Object.keys(EVENTS).some(k => k.startsWith(monthPrefix));
+  const sumK = document.getElementById('sum-k');
+  const sumY = document.getElementById('sum-y');
+  const sumBoth = document.getElementById('sum-both');
+  if (!hasMonthData) {
+    if (sumK) sumK.textContent = '—';
+    if (sumY) sumY.textContent = '—';
+    if (sumBoth) sumBoth.textContent = '—';
+    return;
+  }
   const kOff = new Set(), yOff = new Set();
   for (const [key, evs] of Object.entries(EVENTS)) {
-    if (!key.startsWith(`${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-`)) continue;
+    if (!key.startsWith(monthPrefix)) continue;
     for (const e of evs) {
       if (!OFF_LABELS.has(e.summary)) continue;
       if (e.person === 'こうき') kOff.add(key);
@@ -3318,9 +3402,9 @@ function renderSummary() {
   const yWork = daysInMonth - yOff.size;
   let bothCount = 0;
   for (const k of kOff) if (yOff.has(k)) bothCount++;
-  animateCount(document.getElementById('sum-k'), kWork);
-  animateCount(document.getElementById('sum-y'), yWork);
-  animateCount(document.getElementById('sum-both'), bothCount);
+  animateCount(sumK, kWork);
+  animateCount(sumY, yWork);
+  animateCount(sumBoth, bothCount);
 }
 
 function animateCount(el, target) {
