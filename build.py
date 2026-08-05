@@ -2086,6 +2086,8 @@ let formReminder = 0;
 let formTimeOn = false;
 let openDayKey = null;
 let firestoreDb = null;
+let firestoreShifts = {};  // { "2026-08": {ym, events, updatedAt} }
+let unsubscribeShifts = null;
 let unsubscribe = null;
 let allCustomEvents = [];
 
@@ -2115,6 +2117,21 @@ const Storage = {
       render();
     }
   },
+  async saveShifts(ym, events) {
+    if (!firestoreDb) {
+      const local = JSON.parse(localStorage.getItem('sc_local_shifts') || '{}');
+      local[ym] = { ym, events, updatedAt: Date.now() };
+      localStorage.setItem('sc_local_shifts', JSON.stringify(local));
+      firestoreShifts[ym] = local[ym];
+      render();
+      return;
+    }
+    await this._setDoc(this._doc(firestoreDb, 'shifts', ym), {
+      ym,
+      events,
+      updatedAt: new Date(),
+    });
+  },
   async init() {
     // 優先順: 1) localStorageで手動上書き 2) firebase-config.js(window) 3) ローカルのみ
     let cfg = null;
@@ -2143,6 +2160,10 @@ const Storage = {
     try { allAnniversaries = JSON.parse(localStorage.getItem(LS_ANNIV) || '[]'); }
     catch { allAnniversaries = []; }
     render();
+    try {
+      const local = JSON.parse(localStorage.getItem('sc_local_shifts') || '{}');
+      firestoreShifts = local;
+    } catch(e) {}
   },
   async initFirebase(cfg) {
     setSync('syncing');
@@ -2183,6 +2204,17 @@ const Storage = {
       allAnniversaries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       try { localStorage.setItem(LS_ANNIV, JSON.stringify(allAnniversaries)); } catch {}
       renderSettingsAnniv();
+      render();
+    });
+    this._collShifts = collection(firestoreDb, 'shifts');
+    if (unsubscribeShifts) unsubscribeShifts();
+    unsubscribeShifts = onSnapshot(this._collShifts, snap => {
+      const next = {};
+      snap.forEach(doc => {
+        const d = doc.data();
+        if (d && d.ym) next[d.ym] = d;
+      });
+      firestoreShifts = next;
       render();
     });
   },
@@ -2275,7 +2307,7 @@ function isBothOff(builtinEvents) {
   return k && y;
 }
 function eventsForDate(key) {
-  const builtin = (EVENTS[key] || []).map(e => ({...e, _builtin: true}));
+  const builtin = (getMergedEvents()[key] || []).map(e => ({...e, _builtin: true}));
   const custom = allCustomEvents.filter(e => e.date === key && e.type !== 'memo').map(e => ({
     id: e.id,
     person: PERSON_FROM_KEY[e.type] || '予定',
@@ -2301,7 +2333,7 @@ function renderHero() {
   for (let i = 0; i < 366; i++) {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
     const k = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
-    const builtin = EVENTS[k] || [];
+    const builtin = getMergedEvents()[k] || [];
     if (isBothOff(builtin)) { nextDate = { d, k, days: i }; break; }
   }
   // 次の給料日(ボーナス含む)
@@ -2309,7 +2341,7 @@ function renderHero() {
   for (let i = 0; i < 366; i++) {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
     const k = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
-    const builtin = EVENTS[k] || [];
+    const builtin = getMergedEvents()[k] || [];
     if (builtin.some(e => e.person === '給料')) { nextSalary = { d, k, days: i }; break; }
   }
   // 今月の両方休み回数
@@ -2317,11 +2349,11 @@ function renderHero() {
   const dim = new Date(viewYear, viewMonth+1, 0).getDate();
   for (let dd = 1; dd <= dim; dd++) {
     const k = dateKey(viewYear, viewMonth, dd);
-    if (isBothOff(EVENTS[k] || [])) monthCount++;
+    if (isBothOff(getMergedEvents()[k] || [])) monthCount++;
   }
 
   // 今日のステータスメッセージ
-  const todayBuiltin = EVENTS[todayKey] || [];
+  const todayBuiltin = getMergedEvents()[todayKey] || [];
   let statusMsg = '今日もおつかれさま';
   let hot = false;
   if (isBothOff(todayBuiltin)) {
@@ -2410,7 +2442,7 @@ function renderHero() {
     // 今月の両方休み日の一覧を出す: 最初の日にジャンプ
     for (let dd = 1; dd <= dim; dd++) {
       const k = dateKey(viewYear, viewMonth, dd);
-      if (isBothOff(EVENTS[k] || [])) {
+      if (isBothOff(getMergedEvents()[k] || [])) {
         const d = new Date(viewYear, viewMonth, dd);
         setTimeout(() => openDaySheet(k, viewYear, viewMonth, dd), 80);
         return;
@@ -2435,7 +2467,7 @@ function renderRecall() {
     if (t.years) d.setFullYear(d.getFullYear() - t.years);
     if (t.months) d.setMonth(d.getMonth() - t.months);
     const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
-    const builtin = EVENTS[key] || [];
+    const builtin = getMergedEvents()[key] || [];
     const customForKey = (allCustomEvents || []).filter(e => e.date === key);
     const memoRec = customForKey.find(e => e.type === 'memo');
     const bothOff = isBothOff(builtin);
@@ -2577,7 +2609,7 @@ function renderYearView() {
       cell.className = 'year-cell';
       if (d > dim) { cell.classList.add('empty'); cells.appendChild(cell); continue; }
       const key = dateKey(yearViewYear, m, d);
-      const builtin = EVENTS[key] || [];
+      const builtin = getMergedEvents()[key] || [];
       const hasA = builtin.some(e => A_SHIFT_LABELS.includes(e.summary));
       const hasPay = builtin.some(e => e.person === '給料');
       if (isBothOff(builtin)) cell.classList.add('full');
@@ -2606,6 +2638,7 @@ function renderYearView() {
 
 // ====================  RENDER  ====================
 function render() {
+  const MERGED = getMergedEvents();
   document.getElementById('year-label').textContent = `${viewYear}`;
   document.getElementById('month-num').textContent = `${viewMonth+1}`;
   renderSummary();
@@ -2652,7 +2685,7 @@ function render() {
     num.textContent = d;
     if (key === todayKey) cell.classList.add('today');
 
-    const builtinForDay = (EVENTS[key] || []);
+    const builtinForDay = (MERGED[key] || []);
     if (isBothOff(builtinForDay)) {
       cell.classList.add('both-off');
       const heart = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -2784,7 +2817,7 @@ function refreshDaySheet() {
     body.appendChild(wcard);
   }
   const evs = eventsForDate(key);
-  const builtin = (EVENTS[key] || []);
+  const builtin = (getMergedEvents()[key] || []);
   // 該当月日の毎年の予定(誕生日・記念日)を抽出
   const [_y, _m, _d] = key.split('-').map(Number);
   const annivsForDay = (allAnniversaries || []).filter(a => a.month === _m && a.day === _d);
@@ -3182,7 +3215,7 @@ function celebrateBothOff() {
   // 今日が両方休みなら、ハートを画面下から舞わせる(セッション中1回のみ)
   const today = new Date();
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
-  if (!isBothOff(EVENTS[todayKey] || [])) return;
+  if (!isBothOff(getMergedEvents()[todayKey] || [])) return;
   if (sessionStorage.getItem('celebrated-' + todayKey)) return;
   sessionStorage.setItem('celebrated-' + todayKey, '1');
   const overlay = document.createElement('div');
@@ -3395,7 +3428,8 @@ const OFF_LABELS = new Set(['休', '希望休', '有']);
 function renderSummary() {
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const monthPrefix = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-`;
-  const hasMonthData = Object.keys(EVENTS).some(k => k.startsWith(monthPrefix));
+  const merged = getMergedEvents();
+  const hasMonthData = Object.keys(merged).some(k => k.startsWith(monthPrefix));
   const sumK = document.getElementById('sum-k');
   const sumY = document.getElementById('sum-y');
   const sumBoth = document.getElementById('sum-both');
@@ -3406,7 +3440,7 @@ function renderSummary() {
     return;
   }
   const kOff = new Set(), yOff = new Set();
-  for (const [key, evs] of Object.entries(EVENTS)) {
+  for (const [key, evs] of Object.entries(merged)) {
     if (!key.startsWith(monthPrefix)) continue;
     for (const e of evs) {
       if (!OFF_LABELS.has(e.summary)) continue;
@@ -3576,6 +3610,27 @@ const ShiftPDFParser = {
     return best;
   },
 };
+
+function mergeEventsWithShifts(builtinEvents, shifts) {
+  const merged = { ...builtinEvents };
+  for (const [ym, doc] of Object.entries(shifts)) {
+    if (!doc || !doc.events) continue;
+    Object.keys(merged).forEach(k => {
+      if (k.startsWith(ym + '-')) delete merged[k];
+    });
+    for (const ev of doc.events) {
+      if (!ev || !ev.d) continue;
+      const key = `${ym}-${String(ev.d).padStart(2, '0')}`;
+      if (!merged[key]) merged[key] = [];
+      merged[key].push({ person: ev.person, summary: ev.summary });
+    }
+  }
+  return merged;
+}
+
+function getMergedEvents() {
+  return mergeEventsWithShifts(EVENTS, firestoreShifts);
+}
 
 let pendingShiftOut = null;
 let pendingShiftIn = null;
