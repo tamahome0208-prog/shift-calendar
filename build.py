@@ -3461,6 +3461,118 @@ function spawnConfetti() {
   setTimeout(() => wrap.remove(), 1900);
 }
 
+let __pdfjsLib = null;
+async function loadPdfJs() {
+  if (__pdfjsLib) return __pdfjsLib;
+  const mod = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/pdf.min.mjs');
+  mod.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/pdf.worker.min.mjs';
+  __pdfjsLib = mod;
+  return mod;
+}
+
+const ShiftPDFParser = {
+  KOUKI_NAME: '安中',
+  YUI_NAME: '恩田',
+  KOUKI_DISPLAY: 'こうき',
+  YUI_DISPLAY: 'ゆい',
+  MAX_BYTES: 30 * 1024 * 1024,
+
+  async parse(file) {
+    if (file.size > this.MAX_BYTES) {
+      throw new Error('ファイルサイズが大きすぎます(30MB超)');
+    }
+    const pdfjs = await loadPdfJs();
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjs.getDocument({ data: buf }).promise;
+    if (pdf.numPages < 1) throw new Error('PDFにページがありません');
+    const page = await pdf.getPage(1);
+    const tc = await page.getTextContent();
+
+    const items = tc.items.map(it => ({
+      str: (it.str || '').trim(),
+      x: it.transform[4],
+      y: it.transform[5],
+    })).filter(it => it.str);
+
+    if (!items.length) throw new Error('PDF内にテキストが見つかりません');
+
+    const ym = this._detectYearMonth(items);
+
+    const koukiCol = items.find(it => it.str === this.KOUKI_NAME);
+    const yuiCol = items.find(it => it.str === this.YUI_NAME);
+    if (!koukiCol || !yuiCol) {
+      const err = new Error('「安中」「恩田」列が見つかりません');
+      err.code = 'COLUMN_NOT_FOUND';
+      err.detectedYm = ym;
+      throw err;
+    }
+
+    const rows = this._groupByRow(items, 3);
+
+    const events = [];
+    for (const row of rows) {
+      const first = row[0];
+      if (!first) continue;
+      const day = parseInt(first.str, 10);
+      if (!Number.isInteger(day) || day < 1 || day > 31) continue;
+
+      const kLabel = this._nearestByX(row, koukiCol.x);
+      const yLabel = this._nearestByX(row, yuiCol.x);
+      if (kLabel && kLabel !== String(day)) {
+        events.push({ d: day, person: this.KOUKI_DISPLAY, summary: kLabel });
+      }
+      if (yLabel && yLabel !== String(day)) {
+        events.push({ d: day, person: this.YUI_DISPLAY, summary: yLabel });
+      }
+    }
+
+    return { ym, events };
+  },
+
+  _detectYearMonth(items) {
+    const joined = items.map(it => it.str).join(' ');
+    const m = joined.match(/(\d{4})年\s*(\d{1,2})月/);
+    if (m) {
+      return `${m[1]}-${String(parseInt(m[2], 10)).padStart(2, '0')}`;
+    }
+    return null;
+  },
+
+  _groupByRow(items, tol) {
+    const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
+    const rows = [];
+    let cur = [];
+    let curY = null;
+    for (const it of sorted) {
+      if (curY === null || Math.abs(it.y - curY) <= tol) {
+        cur.push(it);
+        if (curY === null) curY = it.y;
+      } else {
+        rows.push(cur.sort((a, b) => a.x - b.x));
+        cur = [it];
+        curY = it.y;
+      }
+    }
+    if (cur.length) rows.push(cur.sort((a, b) => a.x - b.x));
+    return rows;
+  },
+
+  _nearestByX(row, targetX) {
+    const numbers = new Set(['0','1','2','3','4','5','6','7','8','9']);
+    let best = null;
+    let bestDist = Infinity;
+    for (const it of row) {
+      if (it.str.split('').every(c => numbers.has(c))) continue;
+      const dist = Math.abs(it.x - targetX);
+      if (dist < bestDist && dist < 30) {
+        bestDist = dist;
+        best = it.str;
+      }
+    }
+    return best;
+  },
+};
+
 let pendingShiftOut = null;
 let pendingShiftIn = null;
 function shift(delta) {
