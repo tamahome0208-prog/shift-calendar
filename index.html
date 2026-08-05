@@ -2193,24 +2193,34 @@ const Storage = {
     }
   },
   async saveShifts(ym, events) {
-    if (!firestoreDb) {
+    const payload = { ym, events, updatedAt: Date.now() };
+    if (!firestoreDb || !navigator.onLine) {
       let local;
       try {
         local = JSON.parse(localStorage.getItem('sc_local_shifts') || '{}');
       } catch(e) {
         local = {};
       }
-      local[ym] = { ym, events, updatedAt: Date.now() };
+      local[ym] = payload;
       localStorage.setItem('sc_local_shifts', JSON.stringify(local));
-      firestoreShifts[ym] = local[ym];
+      let queue;
+      try {
+        queue = JSON.parse(localStorage.getItem('sc_shift_queue') || '[]');
+      } catch(e) {
+        queue = [];
+      }
+      queue.push({ ym, events });
+      localStorage.setItem('sc_shift_queue', JSON.stringify(queue));
+      firestoreShifts[ym] = payload;
       render();
-      return;
+      return { queued: true };
     }
     await this._setDoc(this._doc(firestoreDb, 'shifts', ym), {
       ym,
       events,
       updatedAt: new Date(),
     });
+    return { queued: false };
   },
   async init() {
     // 優先順: 1) localStorageで手動上書き 2) firebase-config.js(window) 3) ローカルのみ
@@ -2328,6 +2338,39 @@ const Storage = {
     }
   },
 };
+
+async function flushShiftQueue() {
+  if (!firestoreDb || !navigator.onLine) return;
+  let queue;
+  try {
+    queue = JSON.parse(localStorage.getItem('sc_shift_queue') || '[]');
+  } catch(e) {
+    queue = [];
+  }
+  if (!queue.length) return;
+  const remaining = [];
+  for (const item of queue) {
+    try {
+      await Storage._setDoc(Storage._doc(firestoreDb, 'shifts', item.ym), {
+        ym: item.ym,
+        events: item.events,
+        updatedAt: new Date(),
+      });
+    } catch (e) {
+      console.error('[ShiftQueue] flush failed:', e);
+      remaining.push(item);
+    }
+  }
+  localStorage.setItem('sc_shift_queue', JSON.stringify(remaining));
+  if (remaining.length === 0) {
+    console.log('[ShiftQueue] all flushed');
+  }
+}
+
+window.addEventListener('online', () => {
+  console.log('[ShiftQueue] back online, flushing...');
+  flushShiftQueue();
+});
 
 function setSync(state) {
   const ind = document.getElementById('sync-indicator');
@@ -3500,6 +3543,8 @@ async function init() {
     }
   } catch(e) {}
   await Storage.init();
+  // オフラインキューがあれば flush
+  if (typeof flushShiftQueue === 'function') flushShiftQueue().catch(() => {});
   render();
 
   // 天気を取得(完了したら再描画)
