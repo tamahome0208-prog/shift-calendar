@@ -1541,6 +1541,57 @@ header {
   .cell-ripple,
   .anniv-chip { animation: none; }
 }
+
+/* v10.5 PDF Upload Preview */
+.shift-upload-row {
+  display: grid;
+  grid-template-columns: 48px 1fr 1fr;
+  gap: 4px;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  align-items: center;
+  font-size: 13px;
+}
+.shift-upload-row:last-child { border-bottom: none; }
+.shift-upload-day {
+  font-family: var(--font-en);
+  font-weight: 800;
+  color: var(--text-2);
+  text-align: right;
+}
+.shift-upload-day.sun { color: #E11D48; }
+.shift-upload-day.sat { color: #0284C7; }
+.shift-upload-cell {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.03);
+  cursor: pointer;
+  min-height: 22px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shift-upload-cell.kouki { background: rgba(90, 166, 220, 0.15); color: var(--kouki-meeting); }
+.shift-upload-cell.yui { background: rgba(247, 100, 162, 0.15); color: var(--yui-meeting); }
+.shift-upload-cell.empty { color: var(--muted); font-weight: 500; }
+.shift-upload-cell select {
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  background: white;
+}
+.shift-upload-error {
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #B91C1C;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
 </style>
 </head>
 <body>
@@ -1932,6 +1983,11 @@ header {
         </div>
       </div>
       <div class="field">
+        <label style="display:flex;align-items:center;gap:6px;"><svg style="width:16px;height:16px;"><use href="#i-cloud"/></svg> シフトPDFをアップロード</label>
+        <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">確定PDFをアップロードすると、両端末に同期されます</div>
+        <button class="btn btn-primary" id="shift-upload-btn" type="button" style="font-size:13px;padding:10px;">PDFを選ぶ</button>
+      </div>
+      <div class="field">
         <label style="display:flex;align-items:center;gap:6px;"><svg style="width:16px;height:16px;"><use href="#i-bell"/></svg> ブラウザ通知</label>
         <button class="btn btn-secondary" id="enable-notif" style="font-size:14px;padding:11px;">通知を許可する</button>
         <div id="notif-status" style="font-size: 12px; color: var(--muted); margin-top: 4px;"></div>
@@ -2001,6 +2057,41 @@ header {
     </div>
     <div class="history-counts" id="history-counts"></div>
     <div class="sheet-body" id="history-body"></div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="shift-upload-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="sheet" style="max-height: 92vh;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title" id="shift-upload-title">シフトPDFをアップロード</div>
+      <button class="icon-btn" id="shift-upload-close" aria-label="閉じる"><svg><use href="#i-x"/></svg></button>
+    </div>
+    <div class="sheet-body" id="shift-upload-body">
+      <div id="shift-upload-step1">
+        <label class="btn btn-primary" style="display:block;text-align:center;padding:14px;font-size:14px;cursor:pointer;">
+          ファイルを選ぶ
+          <input type="file" id="shift-upload-input" accept="application/pdf" style="display:none;">
+        </label>
+        <div id="shift-upload-status" style="margin-top:12px;font-size:13px;color:var(--muted);text-align:center;">PDFファイル(30MB以下)</div>
+      </div>
+      <div id="shift-upload-step2" style="display:none;">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+          <select id="shift-upload-year" style="padding:6px;border-radius:8px;border:1.5px solid var(--border);font-size:14px;"></select>
+          <select id="shift-upload-month" style="padding:6px;border-radius:8px;border:1.5px solid var(--border);font-size:14px;"></select>
+          <span id="shift-upload-count" style="font-size:12px;color:var(--muted);"></span>
+        </div>
+        <div id="shift-upload-preview" style="max-height:52vh;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:6px;"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn btn-secondary" id="shift-upload-cancel" type="button" style="flex:1;padding:12px;">キャンセル</button>
+          <button class="btn btn-primary" id="shift-upload-save" type="button" style="flex:1;padding:12px;">保存する</button>
+        </div>
+      </div>
+      <div id="shift-upload-step3" style="display:none;text-align:center;padding:20px 0;">
+        <div id="shift-upload-result" style="font-size:16px;font-weight:800;margin-bottom:12px;"></div>
+        <button class="btn btn-primary" id="shift-upload-done" type="button" style="padding:10px 20px;">閉じる</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -3131,6 +3222,151 @@ function renderSettingsAnniv() {
   const addBtn = document.getElementById('anniv-add-toggle');
   if (addBtn) addBtn.style.display = 'inline-flex';
 }
+const SHIFT_UPLOAD_LABELS = ['(通常勤務)', '休', '希望休', '有', '会議', '出店', 'A', 'MTG', '出張', 'その他'];
+let __pendingShift = null;
+
+function openShiftUpload() {
+  document.getElementById('shift-upload-overlay').classList.add('open');
+  document.getElementById('shift-upload-overlay').setAttribute('aria-hidden', 'false');
+  showUploadStep(1);
+  document.getElementById('shift-upload-status').textContent = 'PDFファイル(30MB以下)';
+  document.getElementById('shift-upload-status').style.color = 'var(--muted)';
+}
+function closeShiftUpload() {
+  document.getElementById('shift-upload-overlay').classList.remove('open');
+  document.getElementById('shift-upload-overlay').setAttribute('aria-hidden', 'true');
+  __pendingShift = null;
+  const inp = document.getElementById('shift-upload-input');
+  if (inp) inp.value = '';
+}
+function showUploadStep(n) {
+  ['shift-upload-step1', 'shift-upload-step2', 'shift-upload-step3'].forEach((id, i) => {
+    document.getElementById(id).style.display = (i === n - 1) ? '' : 'none';
+  });
+}
+async function handleShiftFile(file) {
+  const status = document.getElementById('shift-upload-status');
+  status.textContent = '解析中...';
+  status.style.color = 'var(--muted)';
+  try {
+    const result = await ShiftPDFParser.parse(file);
+    __pendingShift = { ym: result.ym, events: result.events, sourceFilename: file.name };
+    showUploadStep(2);
+    renderShiftPreview();
+  } catch (err) {
+    if (err.code === 'COLUMN_NOT_FOUND') {
+      __pendingShift = { ym: err.detectedYm, events: [], sourceFilename: file.name };
+      status.textContent = '列を検出できず。手動入力してください。';
+      status.style.color = '#B91C1C';
+      showUploadStep(2);
+      renderShiftPreview(true);
+    } else {
+      status.textContent = 'エラー: ' + err.message;
+      status.style.color = '#B91C1C';
+    }
+  }
+}
+function renderShiftPreview(showError = false) {
+  const { ym, events } = __pendingShift;
+  const ySel = document.getElementById('shift-upload-year');
+  const mSel = document.getElementById('shift-upload-month');
+  ySel.innerHTML = '';
+  mSel.innerHTML = '';
+  const nowY = new Date().getFullYear();
+  for (let y = nowY - 1; y <= nowY + 2; y++) {
+    ySel.insertAdjacentHTML('beforeend', `<option value="${y}">${y}年</option>`);
+  }
+  for (let m = 1; m <= 12; m++) {
+    mSel.insertAdjacentHTML('beforeend', `<option value="${m}">${m}月</option>`);
+  }
+  if (ym) {
+    const [yy, mm] = ym.split('-');
+    ySel.value = yy;
+    mSel.value = String(parseInt(mm, 10));
+  }
+  document.getElementById('shift-upload-count').textContent = `${events.length}件検出`;
+
+  const wrap = document.getElementById('shift-upload-preview');
+  wrap.innerHTML = '';
+  if (showError) {
+    const errBar = document.createElement('div');
+    errBar.className = 'shift-upload-error';
+    errBar.textContent = '「安中」「恩田」列が検出できませんでした。各セルをタップして手入力してください。';
+    wrap.appendChild(errBar);
+  }
+  const y = parseInt(ySel.value, 10);
+  const m = parseInt(mSel.value, 10);
+  const days = new Date(y, m, 0).getDate();
+  const WD_JP = ['日', '月', '火', '水', '木', '金', '土'];
+  for (let d = 1; d <= days; d++) {
+    const kEv = events.find(e => e.d === d && e.person === 'こうき');
+    const yEv = events.find(e => e.d === d && e.person === 'ゆい');
+    const wd = new Date(y, m - 1, d).getDay();
+    const row = document.createElement('div');
+    row.className = 'shift-upload-row';
+    const kText = kEv ? kEv.summary : '通常勤務';
+    const yText = yEv ? yEv.summary : '通常勤務';
+    row.innerHTML = `
+      <div class="shift-upload-day ${wd === 0 ? 'sun' : wd === 6 ? 'sat' : ''}">${d}(${WD_JP[wd]})</div>
+      <div class="shift-upload-cell kouki${kEv ? '' : ' empty'}" data-d="${d}" data-p="こうき">${escapeHtml(kText)}</div>
+      <div class="shift-upload-cell yui${yEv ? '' : ' empty'}" data-d="${d}" data-p="ゆい">${escapeHtml(yText)}</div>
+    `;
+    wrap.appendChild(row);
+  }
+  wrap.querySelectorAll('.shift-upload-cell').forEach(cell => {
+    cell.onclick = () => makeCellEditable(cell);
+  });
+}
+function makeCellEditable(cell) {
+  if (cell.querySelector('select')) return;
+  const current = cell.textContent.trim();
+  const sel = document.createElement('select');
+  SHIFT_UPLOAD_LABELS.forEach(label => {
+    const opt = document.createElement('option');
+    opt.value = label;
+    opt.textContent = label;
+    if (label === current || (label === '(通常勤務)' && current === '通常勤務')) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  cell.textContent = '';
+  cell.appendChild(sel);
+  sel.focus();
+  sel.onchange = () => commitCell(cell, sel.value);
+  sel.onblur = () => commitCell(cell, sel.value);
+}
+function commitCell(cell, newVal) {
+  const d = parseInt(cell.dataset.d, 10);
+  const person = cell.dataset.p;
+  cell.textContent = newVal === '(通常勤務)' ? '通常勤務' : newVal;
+  cell.classList.toggle('empty', newVal === '(通常勤務)');
+  const ev = __pendingShift.events;
+  const idx = ev.findIndex(e => e.d === d && e.person === person);
+  if (newVal === '(通常勤務)') {
+    if (idx >= 0) ev.splice(idx, 1);
+  } else {
+    if (idx >= 0) ev[idx].summary = newVal;
+    else ev.push({ d, person, summary: newVal });
+  }
+  document.getElementById('shift-upload-count').textContent = `${ev.length}件検出`;
+}
+async function saveShiftsFromPreview() {
+  if (!__pendingShift) return;
+  const y = document.getElementById('shift-upload-year').value;
+  const m = String(parseInt(document.getElementById('shift-upload-month').value, 10)).padStart(2, '0');
+  const ym = `${y}-${m}`;
+  const btn = document.getElementById('shift-upload-save');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+  try {
+    await Storage.saveShifts(ym, __pendingShift.events);
+    document.getElementById('shift-upload-result').textContent = `✓ ${parseInt(m,10)}月のシフト ${__pendingShift.events.length}件を保存`;
+    showUploadStep(3);
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '保存する';
+    alert('保存失敗: ' + err.message);
+  }
+}
 function openSettings() {
   const cfg = localStorage.getItem(LS_FBCONFIG) || '';
   document.getElementById('fb-config').value = cfg;
@@ -3331,6 +3567,37 @@ async function init() {
   document.getElementById('settings-overlay').onclick = e => { if (e.target.id==='settings-overlay') closeSettings(); };
   document.getElementById('settings-save').onclick = saveSettings;
   document.getElementById('enable-notif').onclick = enableNotifications;
+
+  const shiftBtn = document.getElementById('shift-upload-btn');
+  if (shiftBtn) shiftBtn.onclick = openShiftUpload;
+
+  const shiftInput = document.getElementById('shift-upload-input');
+  if (shiftInput) shiftInput.onchange = e => {
+    const f = e.target.files[0];
+    if (f) handleShiftFile(f);
+  };
+
+  const shiftClose = document.getElementById('shift-upload-close');
+  if (shiftClose) shiftClose.onclick = closeShiftUpload;
+
+  const shiftCancel = document.getElementById('shift-upload-cancel');
+  if (shiftCancel) shiftCancel.onclick = closeShiftUpload;
+
+  const shiftSave = document.getElementById('shift-upload-save');
+  if (shiftSave) shiftSave.onclick = saveShiftsFromPreview;
+
+  const shiftDone = document.getElementById('shift-upload-done');
+  if (shiftDone) shiftDone.onclick = closeShiftUpload;
+
+  const shiftYear = document.getElementById('shift-upload-year');
+  const shiftMonth = document.getElementById('shift-upload-month');
+  if (shiftYear) shiftYear.onchange = () => renderShiftPreview();
+  if (shiftMonth) shiftMonth.onchange = () => renderShiftPreview();
+
+  document.getElementById('shift-upload-overlay').onclick = e => {
+    if (e.target.id === 'shift-upload-overlay') closeShiftUpload();
+  };
+
   document.getElementById('confirm-ok').onclick = () => _resolveConfirm(true);
   document.getElementById('confirm-cancel').onclick = () => _resolveConfirm(false);
   document.getElementById('confirm-overlay').onclick = e => {
@@ -3400,6 +3667,7 @@ async function init() {
 
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape') return;
+    if (document.getElementById('shift-upload-overlay').classList.contains('open')) { closeShiftUpload(); return; }
     if (document.getElementById('history-overlay').classList.contains('open')) { closeHistoryView(); return; }
     if (document.getElementById('year-overlay').classList.contains('open')) { closeYearView(); return; }
     else if (document.getElementById('confirm-overlay').classList.contains('open')) { _resolveConfirm(false); return; }
