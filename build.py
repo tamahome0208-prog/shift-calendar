@@ -2355,37 +2355,48 @@ const Storage = {
   },
 };
 
+let __shiftFlushing = false;
 async function flushShiftQueue() {
+  if (__shiftFlushing) return;
   if (!firestoreDb || !navigator.onLine) return;
-  let queue;
+  __shiftFlushing = true;
   try {
-    queue = JSON.parse(localStorage.getItem('sc_shift_queue') || '[]');
-  } catch(e) {
-    queue = [];
-  }
-  if (!queue.length) return;
-  const remaining = [];
-  for (const item of queue) {
+    let queue;
     try {
-      await Storage._setDoc(Storage._doc(firestoreDb, 'shifts', item.ym), {
-        ym: item.ym,
-        events: item.events,
-        updatedAt: new Date(),
-      });
-    } catch (e) {
-      console.error('[ShiftQueue] flush failed:', e);
-      remaining.push(item);
+      queue = JSON.parse(localStorage.getItem('sc_shift_queue') || '[]');
+    } catch(e) {
+      queue = [];
     }
-  }
-  localStorage.setItem('sc_shift_queue', JSON.stringify(remaining));
-  if (remaining.length === 0) {
-    console.log('[ShiftQueue] all flushed');
+    if (!queue.length) return;
+    const remaining = [];
+    for (const item of queue) {
+      try {
+        await Storage._setDoc(Storage._doc(firestoreDb, 'shifts', item.ym), {
+          ym: item.ym,
+          events: item.events,
+          updatedAt: new Date(),
+        });
+      } catch (e) {
+        console.error('[ShiftQueue] flush failed:', e);
+        remaining.push(item);
+      }
+    }
+    try {
+      localStorage.setItem('sc_shift_queue', JSON.stringify(remaining));
+    } catch(e) {
+      console.error('[ShiftQueue] queue persist failed:', e);
+    }
+    if (remaining.length === 0) {
+      console.log('[ShiftQueue] all flushed');
+    }
+  } finally {
+    __shiftFlushing = false;
   }
 }
 
 window.addEventListener('online', () => {
   console.log('[ShiftQueue] back online, flushing...');
-  flushShiftQueue();
+  flushShiftQueue().catch(e => console.error('[ShiftQueue] online flush error:', e));
 });
 
 function setSync(state) {
