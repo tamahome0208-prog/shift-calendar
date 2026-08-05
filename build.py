@@ -3250,10 +3250,15 @@ async function handleShiftFile(file) {
   status.style.color = 'var(--muted)';
   try {
     const result = await ShiftPDFParser.parse(file);
+    // パース中に close されていたら早期リターン
+    const overlay = document.getElementById('shift-upload-overlay');
+    if (!overlay.classList.contains('open')) return;
     __pendingShift = { ym: result.ym, events: result.events, sourceFilename: file.name };
     showUploadStep(2);
     renderShiftPreview();
   } catch (err) {
+    const overlay = document.getElementById('shift-upload-overlay');
+    if (!overlay.classList.contains('open')) return;
     if (err.code === 'COLUMN_NOT_FOUND') {
       __pendingShift = { ym: err.detectedYm, events: [], sourceFilename: file.name };
       status.textContent = '列を検出できず。手動入力してください。';
@@ -3267,7 +3272,7 @@ async function handleShiftFile(file) {
   }
 }
 function renderShiftPreview(showError = false) {
-  const { ym, events } = __pendingShift;
+  const { ym } = __pendingShift;
   const ySel = document.getElementById('shift-upload-year');
   const mSel = document.getElementById('shift-upload-month');
   ySel.innerHTML = '';
@@ -3284,7 +3289,6 @@ function renderShiftPreview(showError = false) {
     ySel.value = yy;
     mSel.value = String(parseInt(mm, 10));
   }
-  document.getElementById('shift-upload-count').textContent = `${events.length}件検出`;
 
   const wrap = document.getElementById('shift-upload-preview');
   wrap.innerHTML = '';
@@ -3297,6 +3301,10 @@ function renderShiftPreview(showError = false) {
   const y = parseInt(ySel.value, 10);
   const m = parseInt(mSel.value, 10);
   const days = new Date(y, m, 0).getDate();
+  // 月切替で新月の範囲外にある events は保存時に紛れ込むので除去
+  __pendingShift.events = __pendingShift.events.filter(e => e.d >= 1 && e.d <= days);
+  const events = __pendingShift.events;
+  document.getElementById('shift-upload-count').textContent = `${events.length}件検出`;
   const WD_JP = ['日', '月', '火', '水', '木', '金', '土'];
   for (let d = 1; d <= days; d++) {
     const kEv = events.find(e => e.d === d && e.person === 'こうき');
@@ -3320,12 +3328,15 @@ function renderShiftPreview(showError = false) {
 function makeCellEditable(cell) {
   if (cell.querySelector('select')) return;
   const current = cell.textContent.trim();
+  const displayCurrent = current === '通常勤務' ? '(通常勤務)' : current;
   const sel = document.createElement('select');
-  SHIFT_UPLOAD_LABELS.forEach(label => {
+  // 既知ラベルに無い値なら先頭に current を追加(消失防止)
+  const labelsToShow = SHIFT_UPLOAD_LABELS.includes(displayCurrent) ? SHIFT_UPLOAD_LABELS : [displayCurrent, ...SHIFT_UPLOAD_LABELS];
+  labelsToShow.forEach(label => {
     const opt = document.createElement('option');
     opt.value = label;
     opt.textContent = label;
-    if (label === current || (label === '(通常勤務)' && current === '通常勤務')) opt.selected = true;
+    if (label === displayCurrent) opt.selected = true;
     sel.appendChild(opt);
   });
   cell.textContent = '';
