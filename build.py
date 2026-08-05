@@ -3257,6 +3257,7 @@ async function handleShiftFile(file) {
     showUploadStep(2);
     renderShiftPreview();
   } catch (err) {
+    console.error('[ShiftPDF] parse failed:', err);
     const overlay = document.getElementById('shift-upload-overlay');
     if (!overlay.classList.contains('open')) return;
     if (err.code === 'COLUMN_NOT_FOUND') {
@@ -3265,10 +3266,18 @@ async function handleShiftFile(file) {
       status.style.color = '#B91C1C';
       showUploadStep(2);
       renderShiftPreview(true);
+    } else if (err.message && err.message.includes('30MB')) {
+      status.textContent = 'ファイルサイズが大きすぎます(30MB以下にしてください)';
+      status.style.color = '#B91C1C';
+    } else if (err.message && err.message.includes('PDFにページ')) {
+      status.textContent = 'このPDFにはページが含まれていません';
+      status.style.color = '#B91C1C';
     } else {
-      status.textContent = 'エラー: ' + err.message;
+      status.textContent = 'PDFを読み込めませんでした: ' + (err.message || 'unknown error');
       status.style.color = '#B91C1C';
     }
+    const inp = document.getElementById('shift-upload-input');
+    if (inp) inp.value = '';
   }
 }
 function renderShiftPreview(showError = false) {
@@ -3373,9 +3382,14 @@ async function saveShiftsFromPreview() {
     document.getElementById('shift-upload-result').textContent = `✓ ${parseInt(m,10)}月のシフト ${__pendingShift.events.length}件を保存`;
     showUploadStep(3);
   } catch (err) {
+    console.error('[ShiftPDF] save failed:', err);
     btn.disabled = false;
     btn.textContent = '保存する';
-    alert('保存失敗: ' + err.message);
+    let msg = '保存失敗';
+    if (!navigator.onLine) msg = 'オフラインです。ネット接続を確認してください';
+    else if (err.code === 'permission-denied') msg = '権限がありません(Firestore rules 確認)';
+    else if (err.message) msg = '保存失敗: ' + err.message;
+    alert(msg);
   }
 }
 function openSettings() {
