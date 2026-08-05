@@ -3460,6 +3460,8 @@ const ShiftPDFParser = {
   KOUKI_DISPLAY: 'こうき',
   YUI_DISPLAY: 'ゆい',
   MAX_BYTES: 30 * 1024 * 1024,
+  ROW_Y_TOLERANCE: 3,         // 同一行と判定する Y座標の許容 px
+  MAX_COLUMN_X_DISTANCE: 30,  // 列 X座標から離れすぎのセル除外閾値 px
 
   async parse(file) {
     if (file.size > this.MAX_BYTES) {
@@ -3491,7 +3493,7 @@ const ShiftPDFParser = {
       throw err;
     }
 
-    const rows = this._groupByRow(items, 3);
+    const rows = this._groupByRow(items, this.ROW_Y_TOLERANCE);
 
     const events = [];
     for (const row of rows) {
@@ -3514,7 +3516,9 @@ const ShiftPDFParser = {
   },
 
   _detectYearMonth(items) {
-    const joined = items.map(it => it.str).join(' ');
+    // タイトルは先頭にあるため、先頭30itemsに限定してfooter等の誤検出を避ける
+    const scoped = items.slice(0, 30);
+    const joined = scoped.map(it => it.str).join(' ');
     const m = joined.match(/(\d{4})年\s*(\d{1,2})月/);
     if (m) {
       return `${m[1]}-${String(parseInt(m[2], 10)).padStart(2, '0')}`;
@@ -3548,7 +3552,7 @@ const ShiftPDFParser = {
     for (const it of row) {
       if (it.str.split('').every(c => numbers.has(c))) continue;
       const dist = Math.abs(it.x - targetX);
-      if (dist < bestDist && dist < 30) {
+      if (dist < bestDist && dist < ShiftPDFParser.MAX_COLUMN_X_DISTANCE) {
         bestDist = dist;
         best = it.str;
       }
