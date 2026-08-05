@@ -2103,7 +2103,12 @@ const Storage = {
   },
   async saveShifts(ym, events) {
     if (!firestoreDb) {
-      const local = JSON.parse(localStorage.getItem('sc_local_shifts') || '{}');
+      let local;
+      try {
+        local = JSON.parse(localStorage.getItem('sc_local_shifts') || '{}');
+      } catch(e) {
+        local = {};
+      }
       local[ym] = { ym, events, updatedAt: Date.now() };
       localStorage.setItem('sc_local_shifts', JSON.stringify(local));
       firestoreShifts[ym] = local[ym];
@@ -2308,6 +2313,7 @@ function fmtTime(t) { return t ? t : ''; }
 
 // ====================  HERO CARD  ====================
 function renderHero() {
+  const MERGED = getMergedEvents();
   const today = new Date();
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
   const WD = ['日','月','火','水','木','金','土'];
@@ -2317,7 +2323,7 @@ function renderHero() {
   for (let i = 0; i < 366; i++) {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
     const k = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
-    const builtin = getMergedEvents()[k] || [];
+    const builtin = MERGED[k] || [];
     if (isBothOff(builtin)) { nextDate = { d, k, days: i }; break; }
   }
   // 次の給料日(ボーナス含む)
@@ -2325,7 +2331,7 @@ function renderHero() {
   for (let i = 0; i < 366; i++) {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
     const k = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
-    const builtin = getMergedEvents()[k] || [];
+    const builtin = MERGED[k] || [];
     if (builtin.some(e => e.person === '給料')) { nextSalary = { d, k, days: i }; break; }
   }
   // 今月の両方休み回数
@@ -2333,11 +2339,11 @@ function renderHero() {
   const dim = new Date(viewYear, viewMonth+1, 0).getDate();
   for (let dd = 1; dd <= dim; dd++) {
     const k = dateKey(viewYear, viewMonth, dd);
-    if (isBothOff(getMergedEvents()[k] || [])) monthCount++;
+    if (isBothOff(MERGED[k] || [])) monthCount++;
   }
 
   // 今日のステータスメッセージ
-  const todayBuiltin = getMergedEvents()[todayKey] || [];
+  const todayBuiltin = MERGED[todayKey] || [];
   let statusMsg = '今日もおつかれさま';
   let hot = false;
   if (isBothOff(todayBuiltin)) {
@@ -2426,7 +2432,7 @@ function renderHero() {
     // 今月の両方休み日の一覧を出す: 最初の日にジャンプ
     for (let dd = 1; dd <= dim; dd++) {
       const k = dateKey(viewYear, viewMonth, dd);
-      if (isBothOff(getMergedEvents()[k] || [])) {
+      if (isBothOff(MERGED[k] || [])) {
         const d = new Date(viewYear, viewMonth, dd);
         setTimeout(() => openDaySheet(k, viewYear, viewMonth, dd), 80);
         return;
@@ -3596,12 +3602,18 @@ const ShiftPDFParser = {
 };
 
 function mergeEventsWithShifts(builtinEvents, shifts) {
+  const SHIFT_PERSONS = new Set(['こうき', 'ゆい']);
   const merged = { ...builtinEvents };
   for (const [ym, doc] of Object.entries(shifts)) {
     if (!doc || !doc.events) continue;
+    // その月の既存キーから「こうき/ゆい」だけ除去(給料日など他 person は温存)
     Object.keys(merged).forEach(k => {
-      if (k.startsWith(ym + '-')) delete merged[k];
+      if (!k.startsWith(ym + '-')) return;
+      const kept = (merged[k] || []).filter(e => !SHIFT_PERSONS.has(e.person));
+      merged[k] = kept.length ? kept : undefined;
+      if (merged[k] === undefined) delete merged[k];
     });
+    // Firestore の shift events を追加
     for (const ev of doc.events) {
       if (!ev || !ev.d) continue;
       const key = `${ym}-${String(ev.d).padStart(2, '0')}`;
