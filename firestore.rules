@@ -18,5 +18,10 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // v11.0 signals/pulse - リアルタイム軽量信号
+    match /signals/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
   }
 }

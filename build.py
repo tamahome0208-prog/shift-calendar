@@ -2007,6 +2007,15 @@ body.time-night {
         </div>
       </div>
       <div class="field">
+        <label style="display:flex;align-items:center;gap:6px;">あなたは誰?</label>
+        <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">💗ボタンや交換日記の送信元判定に使います</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary" id="identity-kouki" type="button" data-key="kouki" style="flex:1;padding:12px;">こうき</button>
+          <button class="btn btn-secondary" id="identity-yui" type="button" data-key="yui" style="flex:1;padding:12px;">ゆい</button>
+        </div>
+        <div id="identity-status" style="font-size: 12px; color: var(--muted); margin-top: 6px;"></div>
+      </div>
+      <div class="field">
         <label style="display:flex;align-items:center;gap:6px;"><svg style="width:16px;height:16px;"><use href="#i-cloud"/></svg> シフトPDFをアップロード</label>
         <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">確定PDFをアップロードすると、両端末に同期されます</div>
         <button class="btn btn-primary" id="shift-upload-btn" type="button" style="font-size:13px;padding:10px;">PDFを選ぶ</button>
@@ -2206,6 +2215,24 @@ let unsubscribeShifts = null;
 let unsubscribe = null;
 let allCustomEvents = [];
 
+// v11.0 identityStore: 自分が こうき / ゆい どちらかを保持
+const identityStore = {
+  KEY: 'sc_my_person',
+  get() {
+    return localStorage.getItem(this.KEY);
+  },
+  set(v) {
+    if (v === 'kouki' || v === 'yui') {
+      localStorage.setItem(this.KEY, v);
+    } else {
+      localStorage.removeItem(this.KEY);
+    }
+  },
+};
+let firestorePulse = null;
+let unsubscribePulse = null;
+let __lastPulseTs = 0;
+
 // v11.0 Ambient: Favicon SVG テンプレート
 const FAV_TEMPLATES = {
   normal:  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#84CC16"/><circle cx="11" cy="12" r="2.5" fill="white"/><circle cx="21" cy="12" r="2.5" fill="white"/><circle cx="11" cy="12" r="1.2" fill="black"/><circle cx="21" cy="12" r="1.2" fill="black"/><path d="M 10 20 Q 16 24 22 20" stroke="black" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>',
@@ -2369,6 +2396,16 @@ const Storage = {
     });
     return { queued: false };
   },
+  async sendPulse(kind = 'heart') {
+    if (!firestoreDb) return;
+    const me = identityStore.get();
+    if (!me) return;
+    await this._setDoc(this._doc(firestoreDb, 'signals', 'pulse'), {
+      from: me,
+      ts: new Date(),
+      kind,
+    });
+  },
   async init() {
     // 優先順: 1) localStorageで手動上書き 2) firebase-config.js(window) 3) ローカルのみ
     let cfg = null;
@@ -2453,6 +2490,18 @@ const Storage = {
       });
       firestoreShifts = next;
       render();
+    });
+    // v11.0 signals/pulse purchase
+    if (unsubscribePulse) unsubscribePulse();
+    unsubscribePulse = onSnapshot(this._doc(firestoreDb, 'signals', 'pulse'), snap => {
+      const data = snap.data();
+      if (!data) return;
+      const me = identityStore.get();
+      const ts = data.ts?.toMillis ? data.ts.toMillis() : 0;
+      if (!me || data.from === me || ts <= __lastPulseTs) return;
+      __lastPulseTs = ts;
+      if (typeof receivePulse === 'function') receivePulse(data);
+      else console.log('[Pulse] received (no receiver yet):', data);
     });
   },
   async add(ev) {
@@ -3783,6 +3832,26 @@ async function init() {
   document.getElementById('settings-overlay').onclick = e => { if (e.target.id==='settings-overlay') closeSettings(); };
   document.getElementById('settings-save').onclick = saveSettings;
   document.getElementById('enable-notif').onclick = enableNotifications;
+
+  function refreshIdentityUI() {
+    const me = identityStore.get();
+    const kBtn = document.getElementById('identity-kouki');
+    const yBtn = document.getElementById('identity-yui');
+    const status = document.getElementById('identity-status');
+    if (kBtn) kBtn.classList.toggle('btn-primary', me === 'kouki');
+    if (kBtn) kBtn.classList.toggle('btn-secondary', me !== 'kouki');
+    if (yBtn) yBtn.classList.toggle('btn-primary', me === 'yui');
+    if (yBtn) yBtn.classList.toggle('btn-secondary', me !== 'yui');
+    if (status) {
+      status.textContent = me ? `現在: ${me === 'kouki' ? 'こうき' : 'ゆい'}` : '未設定';
+      status.style.color = me ? 'var(--leaf-deep)' : 'var(--muted)';
+    }
+  }
+  const kBtn = document.getElementById('identity-kouki');
+  const yBtn = document.getElementById('identity-yui');
+  if (kBtn) kBtn.onclick = () => { identityStore.set('kouki'); refreshIdentityUI(); };
+  if (yBtn) yBtn.onclick = () => { identityStore.set('yui'); refreshIdentityUI(); };
+  refreshIdentityUI();
 
   const shiftBtn = document.getElementById('shift-upload-btn');
   if (shiftBtn) shiftBtn.onclick = openShiftUpload;
