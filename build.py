@@ -2201,9 +2201,10 @@ function updateFavicon() {
     const t = anniv.type || 'other';
     state = t === 'birth' ? 'birth' : (t === 'anniv' ? 'anniv' : 'other');
   } else {
-    const evs = getMergedEvents()[todayKey] || [];
+    const merged = getMergedEvents();
+    const evs = merged[todayKey] || [];
     if (evs.some(e => e.person === '給料')) state = 'salary';
-    else if (isBothOff(EVENTS[todayKey] || [])) state = 'bothoff';
+    else if (isBothOff(merged[todayKey] || [])) state = 'bothoff';
   }
   const svg = FAV_TEMPLATES[state] || FAV_TEMPLATES.normal;
   const uri = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
@@ -2220,6 +2221,7 @@ function updateTabTitle() {
   const today = new Date();
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
   const [_ty, _tm, _td] = todayKey.split('-').map(Number);
+  const merged = getMergedEvents();
 
   const anniv = (allAnniversaries || []).find(a => a.month === _tm && a.day === _td);
   if (anniv) {
@@ -2227,12 +2229,12 @@ function updateTabTitle() {
     document.title = `${emoji} 今日は${anniv.name} ・カレンダー`;
     return;
   }
-  const evs = getMergedEvents()[todayKey] || [];
+  const evs = merged[todayKey] || [];
   if (evs.some(e => e.person === '給料')) {
     document.title = '💰 今日は給料日 ・カレンダー';
     return;
   }
-  if (isBothOff(EVENTS[todayKey] || [])) {
+  if (isBothOff(merged[todayKey] || [])) {
     document.title = '💗 今日はふたりお休み ・カレンダー';
     return;
   }
@@ -2244,9 +2246,9 @@ function updateTabTitle() {
     const [__y, __m, __d] = key.split('-').map(Number);
     const a = (allAnniversaries || []).find(x => x.month === __m && x.day === __d);
     if (a) { candidates.push({days: i, label: a.name}); continue; }
-    const ev = getMergedEvents()[key] || [];
+    const ev = merged[key] || [];
     if (ev.some(e => e.person === '給料')) { candidates.push({days: i, label: '給料日'}); continue; }
-    if (isBothOff(EVENTS[key] || [])) { candidates.push({days: i, label: 'ふたりお休み'}); continue; }
+    if (isBothOff(merged[key] || [])) { candidates.push({days: i, label: 'ふたりお休み'}); continue; }
   }
   if (candidates.length) {
     const c = candidates[0];
