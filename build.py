@@ -1592,6 +1592,25 @@ header {
   font-weight: 700;
   margin-bottom: 10px;
 }
+/* v11.0 時間帯背景 */
+body {
+  transition: background 0.8s ease;
+}
+body.time-morning {
+  background: linear-gradient(180deg, #FFE4B5 0%, #FFF8F0 100%);
+}
+body.time-noon {
+  background: linear-gradient(180deg, #E0F2FE 0%, #FFF8F0 100%);
+}
+body.time-evening {
+  background: linear-gradient(180deg, #FDBA74 0%, #FFE4E1 100%);
+}
+body.time-night {
+  background: linear-gradient(180deg, #1E3A8A 0%, #4B3F72 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  body { transition: none; }
+}
 </style>
 </head>
 <body>
@@ -2261,14 +2280,29 @@ function updateTabTitle() {
 }
 
 let __ambientTimer = null;
+function applyTimeTheme() {
+  const h = new Date().getHours();
+  let mode;
+  if (h >= 5 && h < 10) mode = 'morning';
+  else if (h >= 10 && h < 16) mode = 'noon';
+  else if (h >= 16 && h < 19) mode = 'evening';
+  else mode = 'night';
+  const classes = ['time-morning', 'time-noon', 'time-evening', 'time-night'];
+  document.body.classList.remove(...classes);
+  document.body.classList.add(`time-${mode}`);
+}
 function updateAmbient() {
   if (document.visibilityState === 'hidden') return;
   updateFavicon();
   updateTabTitle();
-  // applyTimeTheme() は C2 で追加
+  applyTimeTheme();
 }
 function startAmbient() {
+  document.body.style.transition = 'none';
   updateAmbient();
+  requestAnimationFrame(() => {
+    document.body.style.transition = '';
+  });
   if (__ambientTimer) clearInterval(__ambientTimer);
   __ambientTimer = setInterval(updateAmbient, 15 * 60 * 1000);
   document.addEventListener('visibilitychange', updateAmbient);
