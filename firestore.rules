@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 予定(events collection)- 匿名認証済みユーザーのみ read/write
+    match /events/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 毎年の予定(anniversaries collection)- 匿名認証済みユーザーのみ read/write
+    match /anniversaries/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // シフト(shifts collection)- v10.5 追加、匿名認証済みユーザーのみ read/write
+    // docId は "YYYY-MM" 形式
+    match /shifts/{ym} {
+      allow read, write: if request.auth != null;
+    }
+
+  }
+}
