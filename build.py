@@ -2182,6 +2182,96 @@ let unsubscribeShifts = null;
 let unsubscribe = null;
 let allCustomEvents = [];
 
+// v11.0 Ambient: Favicon SVG テンプレート
+const FAV_TEMPLATES = {
+  normal:  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#84CC16"/><circle cx="11" cy="12" r="2.5" fill="white"/><circle cx="21" cy="12" r="2.5" fill="white"/><circle cx="11" cy="12" r="1.2" fill="black"/><circle cx="21" cy="12" r="1.2" fill="black"/><path d="M 10 20 Q 16 24 22 20" stroke="black" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>',
+  bothoff: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M16 28 C 6 18 6 10 12 10 Q 16 10 16 14 Q 16 10 20 10 C 26 10 26 18 16 28 Z" fill="#F764A2" stroke="#B91C5C" stroke-width="1.5"/></svg>',
+  salary:  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="#FCD34D" stroke="#B45309" stroke-width="1.5"/><text x="16" y="21" text-anchor="middle" font-size="14" font-weight="900" fill="#78350F" font-family="sans-serif">¥</text></svg>',
+  birth:   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect x="6" y="16" width="20" height="10" rx="1.5" fill="#FFD9E6" stroke="#F764A2" stroke-width="1"/><rect x="14" y="8" width="3" height="8" fill="#FBBF24" rx="0.6"/><path d="M15.5 5 L16.5 8 L14.5 8 Z" fill="#FF8E5C"/></svg>',
+  anniv:   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M16 28 C 6 18 6 10 12 10 Q 16 10 16 14 Q 16 10 20 10 C 26 10 26 18 16 28 Z" fill="#F5C6E8" stroke="#B91C5C" stroke-width="1.5"/></svg>',
+  other:   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M16 4 L18 12 L26 12 L20 17 L22 25 L16 20 L10 25 L12 17 L6 12 L14 12 Z" fill="#B593D6" stroke="#7C3DA0" stroke-width="1"/></svg>',
+};
+
+function updateFavicon() {
+  const todayKey = dateKey(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+  let state = 'normal';
+  const [_y, _m, _d] = todayKey.split('-').map(Number);
+  const anniv = (allAnniversaries || []).find(a => a.month === _m && a.day === _d);
+  if (anniv) {
+    const t = anniv.type || 'other';
+    state = t === 'birth' ? 'birth' : (t === 'anniv' ? 'anniv' : 'other');
+  } else {
+    const evs = getMergedEvents()[todayKey] || [];
+    if (evs.some(e => e.person === '給料')) state = 'salary';
+    else if (isBothOff(EVENTS[todayKey] || [])) state = 'bothoff';
+  }
+  const svg = FAV_TEMPLATES[state] || FAV_TEMPLATES.normal;
+  const uri = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  let link = document.querySelector('link[rel="icon"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'icon';
+    document.head.appendChild(link);
+  }
+  link.href = uri;
+}
+
+function updateTabTitle() {
+  const today = new Date();
+  const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+  const [_ty, _tm, _td] = todayKey.split('-').map(Number);
+
+  const anniv = (allAnniversaries || []).find(a => a.month === _tm && a.day === _td);
+  if (anniv) {
+    const emoji = anniv.type === 'birth' ? '🎂' : (anniv.type === 'anniv' ? '💗' : '🌸');
+    document.title = `${emoji} 今日は${anniv.name} ・カレンダー`;
+    return;
+  }
+  const evs = getMergedEvents()[todayKey] || [];
+  if (evs.some(e => e.person === '給料')) {
+    document.title = '💰 今日は給料日 ・カレンダー';
+    return;
+  }
+  if (isBothOff(EVENTS[todayKey] || [])) {
+    document.title = '💗 今日はふたりお休み ・カレンダー';
+    return;
+  }
+
+  const candidates = [];
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const [__y, __m, __d] = key.split('-').map(Number);
+    const a = (allAnniversaries || []).find(x => x.month === __m && x.day === __d);
+    if (a) { candidates.push({days: i, label: a.name}); continue; }
+    const ev = getMergedEvents()[key] || [];
+    if (ev.some(e => e.person === '給料')) { candidates.push({days: i, label: '給料日'}); continue; }
+    if (isBothOff(EVENTS[key] || [])) { candidates.push({days: i, label: 'ふたりお休み'}); continue; }
+  }
+  if (candidates.length) {
+    const c = candidates[0];
+    const prefix = c.days === 1 ? '明日は' : `あと${c.days}日で`;
+    document.title = `${prefix}${c.label} ・カレンダー`;
+    return;
+  }
+
+  document.title = `カレンダー(${today.getFullYear()}年${today.getMonth()+1}月)`;
+}
+
+let __ambientTimer = null;
+function updateAmbient() {
+  if (document.visibilityState === 'hidden') return;
+  updateFavicon();
+  updateTabTitle();
+  // applyTimeTheme() は C2 で追加
+}
+function startAmbient() {
+  updateAmbient();
+  if (__ambientTimer) clearInterval(__ambientTimer);
+  __ambientTimer = setInterval(updateAmbient, 15 * 60 * 1000);
+  document.addEventListener('visibilitychange', updateAmbient);
+}
+
 // ====================  STORAGE  ====================
 const Storage = {
   events() { return allCustomEvents; },
@@ -2934,6 +3024,8 @@ function render() {
   }
   renderHero();
   renderRecall();
+  // v11.0 月切替や再描画のたびに tab title を最新化
+  if (typeof updateTabTitle === 'function') updateTabTitle();
 }
 
 // ====================  DAY SHEET  ====================
@@ -3572,6 +3664,8 @@ async function init() {
   await Storage.init();
   // オフラインキューがあれば flush
   if (typeof flushShiftQueue === 'function') flushShiftQueue().catch(() => {});
+  // v11.0 Ambient system 起動
+  startAmbient();
   render();
 
   // 天気を取得(完了したら再描画)
