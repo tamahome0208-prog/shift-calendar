@@ -3898,6 +3898,12 @@ const ShiftPDFParser = {
       throw err;
     }
 
+    // 全スタッフ列のX座標を集めて「他列のほうが近いテキスト」を除外可能にする
+    const STAFF_NAMES = ['安中','大門','山本','五味淵','佐々木','原田','恩田','杉本','斉藤','梨本','住吉','佐々木(佑)','前田'];
+    const allColumnXs = items
+      .filter(it => STAFF_NAMES.includes(it.str))
+      .map(it => it.x);
+
     const rows = this._groupByRow(items, this.ROW_Y_TOLERANCE);
 
     const events = [];
@@ -3907,8 +3913,8 @@ const ShiftPDFParser = {
       const day = parseInt(first.str, 10);
       if (!Number.isInteger(day) || day < 1 || day > 31) continue;
 
-      const kLabel = this._nearestByX(row, koukiCol.x);
-      const yLabel = this._nearestByX(row, yuiCol.x);
+      const kLabel = this._nearestByX(row, koukiCol.x, allColumnXs);
+      const yLabel = this._nearestByX(row, yuiCol.x, allColumnXs);
       if (kLabel && kLabel !== String(day)) {
         events.push({ d: day, person: this.KOUKI_DISPLAY, summary: kLabel });
       }
@@ -3950,13 +3956,26 @@ const ShiftPDFParser = {
     return rows;
   },
 
-  _nearestByX(row, targetX) {
+  _nearestByX(row, targetX, otherColumnXs) {
     const numbers = new Set(['0','1','2','3','4','5','6','7','8','9']);
+    const WEEKDAYS = new Set(['日','月','火','水','木','金','土']);
     let best = null;
     let bestDist = Infinity;
     for (const it of row) {
+      // 数字のみ・単一曜日文字は明らかに列データではないので除外
       if (it.str.split('').every(c => numbers.has(c))) continue;
+      if (it.str.length === 1 && WEEKDAYS.has(it.str)) continue;
       const dist = Math.abs(it.x - targetX);
+      // 他列の X 座標のほうがこのテキストに近ければスキップ(隣の列のデータ)
+      if (otherColumnXs && otherColumnXs.length) {
+        let minOtherDist = Infinity;
+        for (const ox of otherColumnXs) {
+          if (ox === targetX) continue;
+          const d = Math.abs(it.x - ox);
+          if (d < minOtherDist) minOtherDist = d;
+        }
+        if (dist > minOtherDist) continue;
+      }
       if (dist < bestDist && dist < ShiftPDFParser.MAX_COLUMN_X_DISTANCE) {
         bestDist = dist;
         best = it.str;
@@ -4114,9 +4133,39 @@ A_SHIFTS_FALLBACK_BY_MONTH = {
     },
 }
 
-# 2026年7月分シフト(PDF抽出済、xlsx無いため直接埋め込む)
+# 過去月シフト(xlsx未来利用不可のため EXTRA_EVENTS_BY_DATE に永続化)
 # A番は上の A_SHIFTS_FALLBACK_BY_MONTH 側で処理するためここでは除外
+# 給料日は build_salary_events で auto 生成するためここには含めない
 EXTRA_EVENTS_BY_DATE = {
+    "2026-06-01": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "希望休"}],
+    "2026-06-02": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "MTG"}],
+    "2026-06-04": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}],
+    "2026-06-05": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}],
+    "2026-06-06": [{"person": "こうき", "summary": "出店"}],
+    "2026-06-07": [{"person": "こうき", "summary": "出店"}],
+    "2026-06-08": [{"person": "こうき", "summary": "休"}],
+    "2026-06-09": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}],
+    "2026-06-10": [{"person": "こうき", "summary": "出店"}, {"person": "ゆい", "summary": "休"}],
+    "2026-06-11": [{"person": "こうき", "summary": "休"}],
+    "2026-06-12": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}],
+    "2026-06-13": [{"person": "こうき", "summary": "出店"}],
+    "2026-06-14": [{"person": "こうき", "summary": "出店"}],
+    "2026-06-15": [{"person": "こうき", "summary": "会議"}],
+    "2026-06-16": [{"person": "ゆい", "summary": "休"}],
+    "2026-06-17": [{"person": "こうき", "summary": "休"}],
+    "2026-06-18": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}],
+    "2026-06-19": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "出店"}],
+    "2026-06-20": [{"person": "こうき", "summary": "出店"}],
+    "2026-06-21": [{"person": "こうき", "summary": "出店"}],
+    "2026-06-22": [{"person": "こうき", "summary": "休"}],
+    "2026-06-23": [{"person": "こうき", "summary": "会議"}, {"person": "ゆい", "summary": "休"}],
+    "2026-06-24": [{"person": "こうき", "summary": "会議"}],
+    "2026-06-25": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "有"}],
+    "2026-06-26": [{"person": "こうき", "summary": "休"}],
+    "2026-06-27": [{"person": "こうき", "summary": "出店"}, {"person": "ゆい", "summary": "希望休"}],
+    "2026-06-28": [{"person": "ゆい", "summary": "出店"}],
+    "2026-06-29": [{"person": "こうき", "summary": "有"}],
+    "2026-06-30": [{"person": "こうき", "summary": "会議"}],
     "2026-07-01": [{"person": "こうき", "summary": "休"}, {"person": "ゆい", "summary": "休"}],
     "2026-07-02": [{"person": "ゆい", "summary": "希望休"}],
     "2026-07-03": [{"person": "こうき", "summary": "出店"}],
@@ -4209,21 +4258,23 @@ def extract_a_shifts_from_pdf(pdf_path, year=None, month=None):
 
 
 def main():
+    # xlsx 省略時は EXTRA_EVENTS_BY_DATE + A_SHIFTS_FALLBACK_BY_MONTH のみで build
+    # (v10.5 以降、シフトデータは Firestore 経由でも供給されるため xlsx 必須ではない)
     if len(sys.argv) < 2:
-        print("Usage: python build.py <xlsx_path>")
-        sys.exit(1)
-    xlsx = sys.argv[1]
-    shift_events, year = parse_shift(xlsx)
+        print("  info: xlsx 未指定、EXTRA_EVENTS_BY_DATE と A_SHIFTS_FALLBACK のみで build")
+        shift_events = []
+        year = _dt.date.today().year
+        shift_month = _dt.date.today().month
+        a_shifts = {}
+    else:
+        xlsx = sys.argv[1]
+        shift_events, year = parse_shift(xlsx)
+        shift_month = shift_events[0][1].month if shift_events else 1
+        pdf_path = os.path.splitext(xlsx)[0] + ".pdf"
+        a_shifts = {}
+        if os.path.exists(pdf_path):
+            a_shifts = extract_a_shifts_from_pdf(pdf_path, year=year, month=shift_month)
     salary_events = build_salary_events(year)
-
-    # xlsxから取得した月(shift_eventsの最初の日付から)
-    shift_month = shift_events[0][1].month if shift_events else 1
-
-    # 対応するPDFがあればA番を取得、なければ A_SHIFTS_FALLBACK_BY_MONTH からフォールバック
-    pdf_path = os.path.splitext(xlsx)[0] + ".pdf"
-    a_shifts = {}
-    if os.path.exists(pdf_path):
-        a_shifts = extract_a_shifts_from_pdf(pdf_path, year=year, month=shift_month)
     if not a_shifts:
         fallback = get_fallback_a_shifts(year, shift_month)
         if fallback:
