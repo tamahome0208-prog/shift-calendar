@@ -3207,6 +3207,7 @@ function renderRecall() {
 
 let yearViewYear = null;
 function openYearView() {
+  __overlayOpenCount++;
   if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   yearViewYear = viewYear;
   renderYearView();
@@ -3222,9 +3223,11 @@ function closeYearView() {
   if (typeof releaseBodyScroll === 'function') releaseBodyScroll('year-overlay');
   const tt = document.getElementById('art-tooltip');
   if (tt) tt.style.display = 'none';
-  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
+  __overlayOpenCount = Math.max(0, __overlayOpenCount - 1);
+  if (typeof presenceStore !== 'undefined' && !isAnyOverlayOpen()) presenceStore.setActive(true);
 }
 function openHistoryView() {
+  __overlayOpenCount++;
   if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   renderHistoryView();
   document.getElementById('history-overlay').classList.add('open');
@@ -3235,7 +3238,8 @@ function closeHistoryView() {
   document.getElementById('history-overlay').classList.remove('open');
   document.getElementById('history-overlay').setAttribute('aria-hidden', 'true');
   if (typeof releaseBodyScroll === 'function') releaseBodyScroll('history-overlay');
-  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
+  __overlayOpenCount = Math.max(0, __overlayOpenCount - 1);
+  if (typeof presenceStore !== 'undefined' && !isAnyOverlayOpen()) presenceStore.setActive(true);
 }
 function renderHistoryView() {
   const { past, future, today } = getHistoryItems();
@@ -3560,6 +3564,7 @@ function render() {
 
 // ====================  DAY SHEET  ====================
 function openDaySheet(key, y, m, d) {
+  __overlayOpenCount++;
   if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   const wd = ['日','月','火','水','木','金','土'][new Date(y, m, d).getDay()];
   document.getElementById('day-title').innerHTML = `<span class="num">${m+1}</span>月<span class="num">${d}</span>日`;
@@ -3817,7 +3822,8 @@ function closeDaySheet() {
   document.getElementById('day-overlay').setAttribute('aria-hidden', 'true');
   openDayKey = null;
   releaseBodyScroll('day');
-  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
+  __overlayOpenCount = Math.max(0, __overlayOpenCount - 1);
+  if (typeof presenceStore !== 'undefined' && !isAnyOverlayOpen()) presenceStore.setActive(true);
 }
 
 // === Sheet helpers (scroll lock + ESC) ===
@@ -3986,6 +3992,7 @@ const SHIFT_UPLOAD_LABELS = ['(通常勤務)', '休', '希望休', '有', '会�
 let __pendingShift = null;
 
 function openShiftUpload() {
+  __overlayOpenCount++;
   if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   document.getElementById('shift-upload-overlay').classList.add('open');
   document.getElementById('shift-upload-overlay').setAttribute('aria-hidden', 'false');
@@ -3999,7 +4006,8 @@ function closeShiftUpload() {
   __pendingShift = null;
   const inp = document.getElementById('shift-upload-input');
   if (inp) inp.value = '';
-  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
+  __overlayOpenCount = Math.max(0, __overlayOpenCount - 1);
+  if (typeof presenceStore !== 'undefined' && !isAnyOverlayOpen()) presenceStore.setActive(true);
 }
 function showUploadStep(n) {
   ['shift-upload-step1', 'shift-upload-step2', 'shift-upload-step3'].forEach((id, i) => {
@@ -4155,6 +4163,7 @@ async function saveShiftsFromPreview() {
   }
 }
 function openSettings() {
+  __overlayOpenCount++;
   if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   const cfg = localStorage.getItem(LS_FBCONFIG) || '';
   document.getElementById('fb-config').value = cfg;
@@ -4168,7 +4177,8 @@ function closeSettings() {
   document.getElementById('settings-overlay').classList.remove('open');
   document.getElementById('settings-overlay').setAttribute('aria-hidden', 'true');
   releaseBodyScroll('settings');
-  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
+  __overlayOpenCount = Math.max(0, __overlayOpenCount - 1);
+  if (typeof presenceStore !== 'undefined' && !isAnyOverlayOpen()) presenceStore.setActive(true);
 }
 function updateNotifStatus() {
   const status = document.getElementById('notif-status');
@@ -4294,8 +4304,11 @@ async function init() {
     presenceStore.updatePosition(rx, ry, cellKey);
   }, { passive: true });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') presenceStore.setActive(false);
-    else presenceStore.setActive(true);
+    if (document.visibilityState === 'hidden') {
+      presenceStore.setActive(false);
+    } else if (!isAnyOverlayOpen()) {
+      presenceStore.setActive(true);
+    }
   });
   window.addEventListener('beforeunload', () => {
     presenceStore.setActive(false);
@@ -5182,6 +5195,7 @@ const Art = {
 let __reportBlob = null;
 
 async function openReportSheet(year, month) {
+  __overlayOpenCount++;
   if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   const overlay = document.getElementById('report-overlay');
   overlay.classList.add('open');
@@ -5231,8 +5245,13 @@ function closeReportSheet() {
   }
   preview.innerHTML = '';
   __reportBlob = null;
-  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
+  __overlayOpenCount = Math.max(0, __overlayOpenCount - 1);
+  if (typeof presenceStore !== 'undefined' && !isAnyOverlayOpen()) presenceStore.setActive(true);
 }
+
+// v11.7 overlay 開閉カウンター(presence 抑制用)
+let __overlayOpenCount = 0;
+function isAnyOverlayOpen() { return __overlayOpenCount > 0; }
 
 // v11.7 presenceStore: 位置/セル/active を throttle して write
 const presenceStore = {
@@ -5255,6 +5274,7 @@ const presenceStore = {
 
   updatePosition(x, y, cellKey) {
     if (!this.isEnabled()) return;
+    if (isAnyOverlayOpen()) return;  // overlay 中は位置更新しない
     const me = identityStore.get();
     if (!me || !firestoreDb) return;
     this.buffer.x = x;
@@ -5272,10 +5292,14 @@ const presenceStore = {
     }
   },
   setActive(v) {
+    if (v && isAnyOverlayOpen()) return;  // overlay 中は active 復活させない
     if (!this.isEnabled() && v) return;
     if (this.buffer.active === v) return;
     this.buffer.active = v;
-    if (!v && this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }
+    if (!v) {
+      if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }
+      if (this.pendingTimer) { clearTimeout(this.pendingTimer); this.pendingTimer = null; }
+    }
     this._flushNow();
   },
   _flushNow() {
@@ -5312,9 +5336,11 @@ const PartnerCursor = {
     el.style.transform = `translate(${px}px, ${py}px)`;
     el.style.display = 'block';
     document.querySelectorAll('.cell.partner-hover').forEach(c => c.classList.remove('partner-hover'));
-    if (data.cell) {
-      const cell = document.querySelector(`.cell[data-key="${data.cell}"]`);
-      if (cell) cell.classList.add('partner-hover');
+    if (data.cell && typeof data.cell === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.cell)) {
+      try {
+        const cell = document.querySelector(`.cell[data-key="${data.cell}"]`);
+        if (cell) cell.classList.add('partner-hover');
+      } catch (e) { /* invalid selector, ignore */ }
     }
   },
   _hide() {
