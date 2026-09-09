@@ -2604,9 +2604,10 @@ const Storage = {
     });
   },
   async appendNote(dateKey, text) {
-    if (!firestoreDb) return;
+    if (!firestoreDb) throw new Error('Firestore 未接続(設定 → Firebase 設定を確認)');
     const me = identityStore.get();
-    if (!me || !text.trim()) return;
+    if (!me) throw new Error('identity 未設定 — 設定で「あなたは誰?」を選んでください');
+    if (!text.trim()) return;
     const trimmed = text.trim().slice(0, 200);
     const msg = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -2750,23 +2751,18 @@ const Storage = {
       if (typeof receivePulse === 'function') receivePulse(data);
       else console.log('[Pulse] received (no receiver yet):', data);
     });
-    // v11.0 notes subscribe(現月+前後1ヶ月)
+    // v11.0 notes subscribe(全 notes を listen - 2人アプリでドキュメント数は多くない)
     this._collNotes = collection(firestoreDb, 'notes');
     if (unsubscribeNotes) unsubscribeNotes();
     const rebuildNotesListener = () => {
       if (unsubscribeNotes) unsubscribeNotes();
-      const y = viewYear;
-      const m = viewMonth;
-      const start = new Date(y, m - 1, 1);
-      const end = new Date(y, m + 2, 0);
-      const startKey = dateKey(start.getFullYear(), start.getMonth(), start.getDate());
-      const endKey = dateKey(end.getFullYear(), end.getMonth(), end.getDate());
-      const q = this._query(this._collNotes, this._where('__name__', '>=', startKey), this._where('__name__', '<=', endKey));
-      unsubscribeNotes = onSnapshot(q, snap => {
+      unsubscribeNotes = onSnapshot(this._collNotes, snap => {
         const next = {};
         snap.forEach(doc => { next[doc.id] = doc.data(); });
         firestoreNotes = next;
         render();
+      }, err => {
+        console.error('[notes] listen error:', err);
       });
     };
     rebuildNotesListener();
