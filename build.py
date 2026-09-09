@@ -3317,6 +3317,15 @@ function renderYearView() {
       g.onmouseleave = () => { tt.style.display = 'none'; };
       g.onclick = showTt;
     });
+    // モバイル: SVG 外タップで tooltip 非表示
+    if (!svgRoot.__ttCloseWired) {
+      svgRoot.__ttCloseWired = true;
+      document.addEventListener('click', (e) => {
+        if (!svgRoot.contains(e.target) && tt.style.display === 'block') {
+          tt.style.display = 'none';
+        }
+      });
+    }
   }
 }
 
@@ -4722,13 +4731,16 @@ async function svgToPng(svgEl, width, height) {
   const svgString = new XMLSerializer().serializeToString(clone);
   const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const img = new Image();
-  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
-  const canvas = document.createElement('canvas');
-  canvas.width = width; canvas.height = height;
-  canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-  URL.revokeObjectURL(url);
-  return await new Promise(r => canvas.toBlob(r, 'image/png'));
+  try {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+    return await new Promise(r => canvas.toBlob(r, 'image/png'));
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 async function shareOrDownload(blob, filename) {
@@ -5019,7 +5031,7 @@ const Art = {
         l.setAttribute('x1', x); l.setAttribute('x2', x);
         l.setAttribute('y1', cy); l.setAttribute('y2', cy - 60);
         l.setAttribute('stroke', kouki);
-        l.setAttribute('stroke-width', Math.max(step * 0.6, 2));
+        l.setAttribute('stroke-width', Math.max(step * 0.6, 3));
         l.setAttribute('stroke-linecap', 'round');
         g.appendChild(l);
       }
@@ -5028,7 +5040,7 @@ const Art = {
         l.setAttribute('x1', x); l.setAttribute('x2', x);
         l.setAttribute('y1', cy); l.setAttribute('y2', cy + 60);
         l.setAttribute('stroke', yui);
-        l.setAttribute('stroke-width', Math.max(step * 0.6, 2));
+        l.setAttribute('stroke-width', Math.max(step * 0.6, 3));
         l.setAttribute('stroke-linecap', 'round');
         g.appendChild(l);
       }
