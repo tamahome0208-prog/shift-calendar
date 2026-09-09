@@ -1766,6 +1766,22 @@ body.time-night {
 @media (prefers-reduced-motion: reduce) {
   .art-day { animation: none; opacity: 1; }
 }
+/* v11.7 相手カーソル */
+#partner-cursor {
+  position: fixed;
+  top: 0; left: 0;
+  pointer-events: none;
+  z-index: 9997;
+  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease;
+  will-change: transform;
+  --partner-color: var(--yui-meeting);
+}
+.cell.partner-hover {
+  box-shadow: inset 0 0 0 2px var(--yui-meeting);
+}
+@media (prefers-reduced-motion: reduce) {
+  #partner-cursor { transition: opacity 0.3s ease; }
+}
 </style>
 </head>
 <body>
@@ -1923,6 +1939,13 @@ body.time-night {
 </svg>
 
 <div class="sync-indicator" id="sync-indicator" title="同期状態"></div>
+
+<div id="partner-cursor" aria-hidden="true" style="display:none;">
+  <svg width="20" height="20" viewBox="0 0 20 20" style="fill:var(--partner-color);filter:drop-shadow(0 1px 2px rgba(0,0,0,0.25));">
+    <path d="M2 2 L2 15 L6 11 L10 18 L13 17 L9 10 L15 10 Z"/>
+  </svg>
+  <span id="partner-cursor-name" style="display:inline-block;margin-left:4px;padding:2px 6px;background:var(--partner-color);color:white;border-radius:8px;font-size:11px;font-weight:800;white-space:nowrap;vertical-align:top;"></span>
+</div>
 
 <header>
   <div class="header-deco" aria-hidden="true">
@@ -2168,6 +2191,14 @@ body.time-night {
           <button class="btn btn-secondary" id="identity-yui" type="button" data-key="yui" style="flex:1;padding:12px;">ゆい</button>
         </div>
         <div id="identity-status" style="font-size: 12px; color: var(--muted); margin-top: 6px;"></div>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:6px;">👁️ 相手カーソルを表示する</label>
+        <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">同じ画面を二人で見てる感じに</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary" id="cursor-on" type="button" style="flex:1;padding:10px;">表示</button>
+          <button class="btn btn-secondary" id="cursor-off" type="button" style="flex:1;padding:10px;">非表示</button>
+        </div>
       </div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:6px;"><svg style="width:16px;height:16px;"><use href="#i-cloud"/></svg> シフトPDFをアップロード</label>
@@ -2422,6 +2453,9 @@ let unsubscribePulse = null;
 let __lastPulseTs = 0;
 let firestoreNotes = {};  // { "2026-08-15": { messages: [...], updatedAt } }
 let unsubscribeNotes = null;
+// v11.7 相手カーソル + presence
+let firestorePresence = {};
+let unsubscribePresence = null;
 
 function spawnHearts(count = 8) {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -2648,6 +2682,18 @@ const Storage = {
       kind,
     });
   },
+  async writePresence(data) {
+    if (!firestoreDb) return;
+    const me = identityStore.get();
+    if (!me) return;
+    await this._setDoc(this._doc(firestoreDb, 'presence', me), {
+      x: data.x,
+      y: data.y,
+      cell: data.cell,
+      active: data.active,
+      lastPing: new Date(),
+    });
+  },
   async appendNote(dateKey, text) {
     if (!firestoreDb) throw new Error('Firestore 未接続(設定 → Firebase 設定を確認)');
     const me = identityStore.get();
@@ -2795,6 +2841,16 @@ const Storage = {
       __lastPulseTs = ts;
       if (typeof receivePulse === 'function') receivePulse(data);
       else console.log('[Pulse] received (no receiver yet):', data);
+    });
+    // v11.7 presence subscribe
+    if (unsubscribePresence) unsubscribePresence();
+    unsubscribePresence = onSnapshot(collection(firestoreDb, 'presence'), snap => {
+      const next = {};
+      snap.forEach(doc => { next[doc.id] = doc.data(); });
+      firestorePresence = next;
+      if (typeof PartnerCursor !== 'undefined') PartnerCursor.update();
+    }, err => {
+      console.error('[presence] listen error:', err);
     });
     // v11.0 notes subscribe(全 notes を listen - 2人アプリでドキュメント数は多くない)
     this._collNotes = collection(firestoreDb, 'notes');
@@ -3135,6 +3191,7 @@ function renderRecall() {
 
 let yearViewYear = null;
 function openYearView() {
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   yearViewYear = viewYear;
   renderYearView();
   const yo = document.getElementById('year-overlay');
@@ -3149,8 +3206,10 @@ function closeYearView() {
   if (typeof releaseBodyScroll === 'function') releaseBodyScroll('year-overlay');
   const tt = document.getElementById('art-tooltip');
   if (tt) tt.style.display = 'none';
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
 }
 function openHistoryView() {
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   renderHistoryView();
   document.getElementById('history-overlay').classList.add('open');
   document.getElementById('history-overlay').setAttribute('aria-hidden', 'false');
@@ -3160,6 +3219,7 @@ function closeHistoryView() {
   document.getElementById('history-overlay').classList.remove('open');
   document.getElementById('history-overlay').setAttribute('aria-hidden', 'true');
   if (typeof releaseBodyScroll === 'function') releaseBodyScroll('history-overlay');
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
 }
 function renderHistoryView() {
   const { past, future, today } = getHistoryItems();
@@ -3445,6 +3505,17 @@ function render() {
     cell.setAttribute('role', 'button');
     cell.setAttribute('tabindex', '0');
     cell.setAttribute('aria-label', `${y}年${m+1}月${d}日`);
+    cell.setAttribute('data-key', key);
+    cell.addEventListener('pointerenter', (ev) => {
+      const rx = ev.clientX / window.innerWidth;
+      const ry = ev.clientY / window.innerHeight;
+      presenceStore.updatePosition(rx, ry, key);
+    });
+    cell.addEventListener('pointerdown', (ev) => {
+      const rx = ev.clientX / window.innerWidth;
+      const ry = ev.clientY / window.innerHeight;
+      presenceStore.updatePosition(rx, ry, key);
+    });
     cell.onclick = (ev) => {
       if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         const rect = cell.getBoundingClientRect();
@@ -3473,6 +3544,7 @@ function render() {
 
 // ====================  DAY SHEET  ====================
 function openDaySheet(key, y, m, d) {
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   const wd = ['日','月','火','水','木','金','土'][new Date(y, m, d).getDay()];
   document.getElementById('day-title').innerHTML = `<span class="num">${m+1}</span>月<span class="num">${d}</span>日`;
   document.getElementById('day-subtitle').textContent = `${y}年 ${wd}曜日`;
@@ -3729,6 +3801,7 @@ function closeDaySheet() {
   document.getElementById('day-overlay').setAttribute('aria-hidden', 'true');
   openDayKey = null;
   releaseBodyScroll('day');
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
 }
 
 // === Sheet helpers (scroll lock + ESC) ===
@@ -3897,6 +3970,7 @@ const SHIFT_UPLOAD_LABELS = ['(通常勤務)', '休', '希望休', '有', '会�
 let __pendingShift = null;
 
 function openShiftUpload() {
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   document.getElementById('shift-upload-overlay').classList.add('open');
   document.getElementById('shift-upload-overlay').setAttribute('aria-hidden', 'false');
   showUploadStep(1);
@@ -3909,6 +3983,7 @@ function closeShiftUpload() {
   __pendingShift = null;
   const inp = document.getElementById('shift-upload-input');
   if (inp) inp.value = '';
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
 }
 function showUploadStep(n) {
   ['shift-upload-step1', 'shift-upload-step2', 'shift-upload-step3'].forEach((id, i) => {
@@ -4064,6 +4139,7 @@ async function saveShiftsFromPreview() {
   }
 }
 function openSettings() {
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   const cfg = localStorage.getItem(LS_FBCONFIG) || '';
   document.getElementById('fb-config').value = cfg;
   updateNotifStatus();
@@ -4076,6 +4152,7 @@ function closeSettings() {
   document.getElementById('settings-overlay').classList.remove('open');
   document.getElementById('settings-overlay').setAttribute('aria-hidden', 'true');
   releaseBodyScroll('settings');
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
 }
 function updateNotifStatus() {
   const status = document.getElementById('notif-status');
@@ -4191,6 +4268,22 @@ async function init() {
   if (typeof flushShiftQueue === 'function') flushShiftQueue().catch(() => {});
   // v11.0 Ambient system 起動
   startAmbient();
+  // v11.7 グローバル pointermove(セル外でも位置追従)
+  document.addEventListener('pointermove', (ev) => {
+    const rx = ev.clientX / window.innerWidth;
+    const ry = ev.clientY / window.innerHeight;
+    const target = document.elementFromPoint(ev.clientX, ev.clientY);
+    const cellEl = target?.closest?.('.cell');
+    const cellKey = cellEl?.dataset?.key || null;
+    presenceStore.updatePosition(rx, ry, cellKey);
+  }, { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') presenceStore.setActive(false);
+    else presenceStore.setActive(true);
+  });
+  window.addEventListener('beforeunload', () => {
+    presenceStore.setActive(false);
+  });
   render();
 
   // 天気を取得(完了したら再描画)
@@ -4343,6 +4436,19 @@ async function init() {
   if (kBtn) kBtn.onclick = () => { identityStore.set('kouki'); refreshIdentityUI(); };
   if (yBtn) yBtn.onclick = () => { identityStore.set('yui'); refreshIdentityUI(); };
   refreshIdentityUI();
+
+  function refreshCursorUI() {
+    const enabled = presenceStore.isEnabled();
+    const onBtn = document.getElementById('cursor-on');
+    const offBtn = document.getElementById('cursor-off');
+    if (onBtn) { onBtn.classList.toggle('btn-primary', enabled); onBtn.classList.toggle('btn-secondary', !enabled); }
+    if (offBtn) { offBtn.classList.toggle('btn-primary', !enabled); offBtn.classList.toggle('btn-secondary', enabled); }
+  }
+  const cursorOn = document.getElementById('cursor-on');
+  const cursorOff = document.getElementById('cursor-off');
+  if (cursorOn) cursorOn.onclick = () => { presenceStore.setEnabled(true); refreshCursorUI(); PartnerCursor.update(); };
+  if (cursorOff) cursorOff.onclick = () => { presenceStore.setEnabled(false); refreshCursorUI(); PartnerCursor.update(); };
+  refreshCursorUI();
 
   const shiftBtn = document.getElementById('shift-upload-btn');
   if (shiftBtn) shiftBtn.onclick = openShiftUpload;
@@ -5060,6 +5166,7 @@ const Art = {
 let __reportBlob = null;
 
 async function openReportSheet(year, month) {
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(false);
   const overlay = document.getElementById('report-overlay');
   overlay.classList.add('open');
   overlay.setAttribute('aria-hidden', 'false');
@@ -5108,7 +5215,98 @@ function closeReportSheet() {
   }
   preview.innerHTML = '';
   __reportBlob = null;
+  if (typeof presenceStore !== 'undefined') presenceStore.setActive(true);
 }
+
+// v11.7 presenceStore: 位置/セル/active を throttle して write
+const presenceStore = {
+  THROTTLE_MS: 2000,
+  IDLE_MS: 5000,
+  ENABLED_KEY: 'sc_partner_cursor_enabled',
+  buffer: { x: 0, y: 0, cell: null, active: true },
+  lastWriteTs: 0,
+  idleTimer: null,
+  pendingTimer: null,
+
+  isEnabled() {
+    const v = localStorage.getItem(this.ENABLED_KEY);
+    return v === null ? true : v === 'true';
+  },
+  setEnabled(v) {
+    localStorage.setItem(this.ENABLED_KEY, v ? 'true' : 'false');
+    if (!v) this.setActive(false);
+  },
+
+  updatePosition(x, y, cellKey) {
+    if (!this.isEnabled()) return;
+    const me = identityStore.get();
+    if (!me || !firestoreDb) return;
+    this.buffer.x = x;
+    this.buffer.y = y;
+    this.buffer.cell = cellKey || null;
+    this.buffer.active = true;
+    const now = Date.now();
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => this.setActive(false), this.IDLE_MS);
+    if (now - this.lastWriteTs >= this.THROTTLE_MS) {
+      this._flushNow();
+    } else if (!this.pendingTimer) {
+      const delay = this.THROTTLE_MS - (now - this.lastWriteTs);
+      this.pendingTimer = setTimeout(() => { this.pendingTimer = null; this._flushNow(); }, delay);
+    }
+  },
+  setActive(v) {
+    if (!this.isEnabled() && v) return;
+    if (this.buffer.active === v) return;
+    this.buffer.active = v;
+    if (!v && this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }
+    this._flushNow();
+  },
+  _flushNow() {
+    const me = identityStore.get();
+    if (!me || !firestoreDb) return;
+    this.lastWriteTs = Date.now();
+    Storage.writePresence({ ...this.buffer }).catch(e => console.error('[presence] write failed:', e));
+  },
+};
+
+const PartnerCursor = {
+  MAX_AGE_MS: 30000,
+
+  update() {
+    const me = identityStore.get();
+    if (!me) return this._hide();
+    if (!presenceStore.isEnabled()) return this._hide();
+    const partnerKey = me === 'kouki' ? 'yui' : 'kouki';
+    const partner = firestorePresence[partnerKey];
+    if (!partner || !partner.active) return this._hide();
+    const ts = partner.lastPing?.toMillis ? partner.lastPing.toMillis() : 0;
+    if (Date.now() - ts > this.MAX_AGE_MS) return this._hide();
+    this._show(partner, partnerKey);
+  },
+  _show(data, partnerKey) {
+    const el = document.getElementById('partner-cursor');
+    if (!el) return;
+    const label = document.getElementById('partner-cursor-name');
+    if (label) label.textContent = partnerKey === 'kouki' ? 'こうき' : 'ゆい';
+    const color = partnerKey === 'kouki' ? 'var(--kouki-meeting)' : 'var(--yui-meeting)';
+    el.style.setProperty('--partner-color', color);
+    const px = data.x * window.innerWidth;
+    const py = data.y * window.innerHeight;
+    el.style.transform = `translate(${px}px, ${py}px)`;
+    el.style.display = 'block';
+    document.querySelectorAll('.cell.partner-hover').forEach(c => c.classList.remove('partner-hover'));
+    if (data.cell) {
+      const cell = document.querySelector(`.cell[data-key="${data.cell}"]`);
+      if (cell) cell.classList.add('partner-hover');
+    }
+  },
+  _hide() {
+    const el = document.getElementById('partner-cursor');
+    if (el) el.style.display = 'none';
+    document.querySelectorAll('.cell.partner-hover').forEach(c => c.classList.remove('partner-hover'));
+  },
+};
 
 let pendingShiftOut = null;
 let pendingShiftIn = null;

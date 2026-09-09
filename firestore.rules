@@ -28,5 +28,10 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // v11.7 presence - リアルタイム位置共有
+    match /presence/{personKey} {
+      allow read, write: if request.auth != null;
+    }
+
   }
 }
