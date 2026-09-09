@@ -1755,6 +1755,17 @@ body.time-night {
   z-index: 2;
   pointer-events: none;
 }
+/* v11.5 月末レポート */
+#report-preview img {
+  animation: report-fade-in 0.4s ease;
+}
+@keyframes report-fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #report-preview img { animation: none; }
+}
 </style>
 </head>
 <body>
@@ -2231,8 +2242,34 @@ body.time-night {
         <svg><use href="#i-x"/></svg>
       </button>
     </div>
+    <div style="padding: 4px 16px 12px;">
+      <button class="btn btn-primary" id="open-report-btn" type="button" style="width:100%;padding:12px;font-size:14px;">📊 今月のレポートを見る</button>
+    </div>
     <div class="history-counts" id="history-counts"></div>
     <div class="sheet-body" id="history-body"></div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="report-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="sheet" style="max-height: 92vh;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title" id="report-title">月末レポート</div>
+      <button class="icon-btn" id="report-close" aria-label="閉じる"><svg><use href="#i-x"/></svg></button>
+    </div>
+    <div class="sheet-body">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;">
+        <select id="report-year" style="padding:6px;border-radius:8px;border:1.5px solid var(--border);font-size:14px;"></select>
+        <select id="report-month" style="padding:6px;border-radius:8px;border:1.5px solid var(--border);font-size:14px;"></select>
+        <button class="btn btn-secondary" id="report-regen" type="button" style="padding:6px 12px;font-size:12px;">再生成</button>
+      </div>
+      <div id="report-preview" style="text-align:center;min-height:200px;"></div>
+      <div id="report-status" style="text-align:center;font-size:13px;color:var(--muted);margin:10px 0;"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn btn-secondary" id="report-download" type="button" style="flex:1;padding:12px;" disabled>ダウンロード</button>
+        <button class="btn btn-primary" id="report-share" type="button" style="flex:1;padding:12px;" disabled>シェア</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -4182,6 +4219,48 @@ async function init() {
   document.getElementById('settings-btn').onclick = openSettings;
   const pulseBtn = document.getElementById('pulse-btn');
   if (pulseBtn) pulseBtn.onclick = handlePulseClick;
+  const openReportBtn = document.getElementById('open-report-btn');
+  if (openReportBtn) openReportBtn.onclick = () => {
+    const ySel = document.getElementById('report-year');
+    const mSel = document.getElementById('report-month');
+    ySel.innerHTML = '';
+    mSel.innerHTML = '';
+    const nowY = new Date().getFullYear();
+    for (let y = nowY - 1; y <= nowY + 1; y++) {
+      ySel.insertAdjacentHTML('beforeend', `<option value="${y}">${y}年</option>`);
+    }
+    for (let m = 1; m <= 12; m++) {
+      mSel.insertAdjacentHTML('beforeend', `<option value="${m}">${m}月</option>`);
+    }
+    ySel.value = viewYear;
+    mSel.value = String(viewMonth + 1);
+    openReportSheet(viewYear, viewMonth);
+  };
+  const reportClose = document.getElementById('report-close');
+  if (reportClose) reportClose.onclick = closeReportSheet;
+  const reportRegen = document.getElementById('report-regen');
+  if (reportRegen) reportRegen.onclick = () => {
+    const y = parseInt(document.getElementById('report-year').value, 10);
+    const m = parseInt(document.getElementById('report-month').value, 10) - 1;
+    openReportSheet(y, m);
+  };
+  const reportDl = document.getElementById('report-download');
+  if (reportDl) reportDl.onclick = () => {
+    if (!__reportBlob) return;
+    const y = document.getElementById('report-year').value;
+    const m = String(parseInt(document.getElementById('report-month').value, 10)).padStart(2, '0');
+    shareOrDownload(__reportBlob, `${y}-${m}-report.png`);
+  };
+  const reportShare = document.getElementById('report-share');
+  if (reportShare) reportShare.onclick = () => {
+    if (!__reportBlob) return;
+    const y = document.getElementById('report-year').value;
+    const m = String(parseInt(document.getElementById('report-month').value, 10)).padStart(2, '0');
+    shareOrDownload(__reportBlob, `${y}-${m}-report.png`);
+  };
+  document.getElementById('report-overlay').onclick = e => {
+    if (e.target.id === 'report-overlay') closeReportSheet();
+  };
   document.getElementById('settings-close').onclick = closeSettings;
   document.getElementById('settings-cancel').onclick = closeSettings;
   document.getElementById('settings-overlay').onclick = e => { if (e.target.id==='settings-overlay') closeSettings(); };
@@ -4307,6 +4386,7 @@ async function init() {
 
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape') return;
+    if (document.getElementById('report-overlay').classList.contains('open')) { closeReportSheet(); return; }
     if (document.getElementById('shift-upload-overlay').classList.contains('open')) { closeShiftUpload(); return; }
     if (document.getElementById('history-overlay').classList.contains('open')) { closeHistoryView(); return; }
     if (document.getElementById('year-overlay').classList.contains('open')) { closeYearView(); return; }
@@ -4569,6 +4649,227 @@ function mergeEventsWithShifts(builtinEvents, shifts) {
 
 function getMergedEvents() {
   return mergeEventsWithShifts(EVENTS, firestoreShifts);
+}
+
+async function shareOrDownload(blob, filename) {
+  const file = new File([blob], filename, { type: blob.type || 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'karenda' });
+      return;
+    } catch (e) {
+      if (e.name !== 'AbortError') console.error('[share] failed:', e);
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
+}
+
+const Report = {
+  OFF_LABELS: new Set(['休', '希望休', '有']),
+  SEASON_EMOJI: {1:'🎍',2:'🌸',3:'🌸',4:'🌸',5:'🌱',6:'☔',7:'🌻',8:'🌊',9:'🍁',10:'🍁',11:'🍂',12:'❄️'},
+
+  build(year, month) {
+    const merged = getMergedEvents();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prefix = `${year}-${String(month + 1).padStart(2, '0')}-`;
+
+    const kOff = new Set(), yOff = new Set();
+    const outings = [], meetings = [];
+    let salaryDay = null;
+    for (const [key, evs] of Object.entries(merged)) {
+      if (!key.startsWith(prefix)) continue;
+      for (const e of evs) {
+        if (this.OFF_LABELS.has(e.summary)) {
+          if (e.person === 'こうき') kOff.add(key);
+          if (e.person === 'ゆい') yOff.add(key);
+        }
+        if (e.summary === '出店') outings.push(key);
+        if (e.summary === '会議') meetings.push(key);
+        if (e.person === '給料' && !salaryDay) salaryDay = parseInt(key.split('-')[2], 10);
+      }
+    }
+
+    const bothOffKeys = [...kOff].filter(k => yOff.has(k)).sort();
+    const kWork = daysInMonth - kOff.size;
+    const yWork = daysInMonth - yOff.size;
+
+    const highlights = [];
+    const anniv = (allAnniversaries || []).find(a => a.month === month + 1);
+    if (anniv) highlights.push({icon: anniv.type === 'birth' ? '🎂' : (anniv.type === 'anniv' ? '💗' : '🌸'), text: `${anniv.name}(${anniv.month}/${anniv.day})`});
+    if (salaryDay) highlights.push({icon: '💰', text: `給料日 ${month+1}/${salaryDay}`});
+    if (bothOffKeys.length >= 5) highlights.push({icon: '💗', text: `${bothOffKeys.length}日一緒にお休み`});
+    else if (bothOffKeys.length >= 1) highlights.push({icon: '💗', text: `被り ${bothOffKeys.length}日`});
+    if (outings.length) highlights.push({icon: '📅', text: `出店 ${outings.length}回・会議 ${meetings.length}回`});
+
+    const notable = [];
+    let consecutiveMax = { count: 0, start: null, end: null };
+    let curStart = null, curCount = 0, prevDay = -2;
+    for (const k of bothOffKeys) {
+      const day = parseInt(k.split('-')[2], 10);
+      if (day === prevDay + 1) { curCount++; }
+      else { if (curCount > consecutiveMax.count) consecutiveMax = { count: curCount, start: curStart, end: prevDay }; curStart = day; curCount = 1; }
+      prevDay = day;
+    }
+    if (curCount > consecutiveMax.count) consecutiveMax = { count: curCount, start: curStart, end: prevDay };
+    if (consecutiveMax.count >= 2) notable.push(`${month+1}/${consecutiveMax.start}-${consecutiveMax.end} ${consecutiveMax.count}日連続被り`);
+
+    const notesMonth = Object.entries(firestoreNotes || {}).filter(([k]) => k.startsWith(prefix));
+    const msgCount = notesMonth.reduce((s, [_, d]) => s + (d.messages?.length || 0), 0);
+    if (msgCount >= 5) notable.push(`交換日記 ${msgCount}メッセージ`);
+
+    return {
+      year, month, daysInMonth,
+      kWork, yWork, both: bothOffKeys.length,
+      highlights, notable,
+      seasonEmoji: this.SEASON_EMOJI[month + 1] || '🌸',
+    };
+  },
+
+  async drawCanvas(data, canvas) {
+    const W = 1080, H = 1920;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    const styles = getComputedStyle(document.body);
+    const surface = styles.getPropertyValue('--surface').trim() || '#FFF8F0';
+    const kouki = styles.getPropertyValue('--kouki-meeting').trim() || '#0B3B5C';
+    const yui = styles.getPropertyValue('--yui-meeting').trim() || '#B91C5C';
+    const leaf = styles.getPropertyValue('--leaf-deep').trim() || '#4D7C0F';
+    const text = styles.getPropertyValue('--text').trim() || '#2D2416';
+    const muted = styles.getPropertyValue('--muted').trim() || '#8B7A6B';
+
+    ctx.fillStyle = surface;
+    ctx.fillRect(0, 0, W, H);
+
+    // Header
+    ctx.fillStyle = kouki;
+    ctx.font = '900 68px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${data.seasonEmoji} ${data.year}年 ${data.month + 1}月`, 60, 140);
+    ctx.font = '700 40px sans-serif';
+    ctx.fillStyle = muted;
+    ctx.fillText('ふたりの記録', 60, 200);
+
+    // Divider
+    ctx.strokeStyle = muted;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(60, 260); ctx.lineTo(W - 60, 260); ctx.stroke();
+
+    // Counters
+    const cardW = (W - 60 * 2 - 40) / 3;
+    const cardY = 320;
+    const cards = [
+      { label: 'こうき', value: data.kWork, unit: '日', bg: kouki },
+      { label: 'ゆい',   value: data.yWork, unit: '日', bg: yui },
+      { label: '被り 💗', value: data.both,   unit: '日', bg: leaf },
+    ];
+    cards.forEach((c, i) => {
+      const x = 60 + (cardW + 20) * i;
+      ctx.fillStyle = c.bg;
+      const r = 32;
+      // roundRect が無い環境用フォールバック
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(x, cardY, cardW, 300, r);
+        ctx.fill();
+      } else {
+        ctx.fillRect(x, cardY, cardW, 300);
+      }
+      ctx.fillStyle = 'white';
+      ctx.font = '700 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(c.label, x + cardW / 2, cardY + 60);
+      ctx.font = '900 120px sans-serif';
+      ctx.fillText(String(c.value), x + cardW / 2, cardY + 200);
+      ctx.font = '700 32px sans-serif';
+      ctx.fillText(c.unit, x + cardW / 2, cardY + 260);
+    });
+
+    // Highlights
+    let y = 720;
+    ctx.fillStyle = text;
+    ctx.font = '900 44px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('ハイライト', 60, y);
+    y += 60;
+    ctx.font = '700 36px sans-serif';
+    data.highlights.slice(0, 5).forEach(h => {
+      ctx.fillText(`${h.icon}  ${h.text}`, 80, y);
+      y += 60;
+    });
+
+    // Notable
+    if (data.notable.length) {
+      y += 40;
+      ctx.font = '900 44px sans-serif';
+      ctx.fillText('気になる出来事', 60, y);
+      y += 60;
+      ctx.font = '700 32px sans-serif';
+      ctx.fillStyle = muted;
+      data.notable.slice(0, 4).forEach(n => {
+        ctx.fillText(`• ${n}`, 80, y);
+        y += 50;
+      });
+    }
+
+    // Footer
+    ctx.font = '700 32px sans-serif';
+    ctx.fillStyle = muted;
+    ctx.textAlign = 'center';
+    ctx.fillText('💗 karenda — ふたりのカレンダー', W / 2, H - 80);
+
+    return await new Promise(res => canvas.toBlob(res, 'image/png'));
+  },
+};
+
+let __reportBlob = null;
+
+async function openReportSheet(year, month) {
+  const overlay = document.getElementById('report-overlay');
+  overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden', 'false');
+  const status = document.getElementById('report-status');
+  const preview = document.getElementById('report-preview');
+  const shareBtn = document.getElementById('report-share');
+  const dlBtn = document.getElementById('report-download');
+  const title = document.getElementById('report-title');
+  title.textContent = `${year}年${month + 1}月のレポート`;
+  status.textContent = '生成中...';
+  preview.innerHTML = '';
+  shareBtn.disabled = true;
+  dlBtn.disabled = true;
+  try {
+    const data = Report.build(year, month);
+    if (data.kWork === data.daysInMonth && data.yWork === data.daysInMonth && data.highlights.length === 0) {
+      status.textContent = 'この月にはまだデータがありません';
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    __reportBlob = await Report.drawCanvas(data, canvas);
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(__reportBlob);
+    img.style.cssText = 'width:100%;max-width:400px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+    preview.appendChild(img);
+    status.textContent = '';
+    shareBtn.disabled = false;
+    dlBtn.disabled = false;
+  } catch (e) {
+    console.error('[report] failed:', e);
+    status.textContent = '生成に失敗しました: ' + (e.message || e);
+  }
+}
+
+function closeReportSheet() {
+  const overlay = document.getElementById('report-overlay');
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
+  document.getElementById('report-preview').innerHTML = '';
+  __reportBlob = null;
 }
 
 let pendingShiftOut = null;
