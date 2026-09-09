@@ -1750,6 +1750,22 @@ body.time-night {
 @media (prefers-reduced-motion: reduce) {
   #report-preview img { animation: none; }
 }
+/* v11.5 年間軌跡アート */
+.art-day {
+  animation: art-fade-in 0.6s ease forwards;
+  animation-delay: calc(var(--i, 0) * 8ms);
+  opacity: 0;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.art-day:hover { filter: brightness(1.4); }
+@keyframes art-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .art-day { animation: none; opacity: 1; }
+}
 </style>
 </head>
 <body>
@@ -2212,6 +2228,14 @@ body.time-night {
         <span class="year-leg"><span class="year-swatch a"></span>A番</span>
         <span class="year-leg"><span class="year-swatch pay"></span>給料日</span>
       </div>
+    </div>
+    <div style="padding: 12px 16px; border-top: 1px solid var(--border); margin-top: 20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:14px;font-weight:800;color:var(--text-2);">🎨 今年の軌跡</div>
+        <button class="btn btn-secondary" id="art-share-btn" type="button" style="padding:4px 10px;font-size:12px;">画像を保存</button>
+      </div>
+      <svg id="art-svg" style="width:100%;height:auto;max-height:400px;display:block;" role="img" aria-label="年間軌跡アート"></svg>
+      <div id="art-tooltip" style="position:fixed;background:rgba(0,0,0,0.85);color:white;padding:6px 10px;border-radius:6px;font-size:12px;pointer-events:none;display:none;z-index:10001;"></div>
     </div>
   </div>
 </div>
@@ -3123,6 +3147,8 @@ function closeYearView() {
   yo.classList.remove('open');
   yo.setAttribute('aria-hidden', 'true');
   if (typeof releaseBodyScroll === 'function') releaseBodyScroll('year-overlay');
+  const tt = document.getElementById('art-tooltip');
+  if (tt) tt.style.display = 'none';
 }
 function openHistoryView() {
   renderHistoryView();
@@ -3249,6 +3275,32 @@ function renderYearView() {
     }
     row.appendChild(cells);
     grid.appendChild(row);
+  }
+
+  // v11.5 年間軌跡アート
+  const svgRoot = document.getElementById('art-svg');
+  if (svgRoot) {
+    const artData = Art.build(yearViewYear);
+    Art.renderSVG(artData, svgRoot);
+    const tt = document.getElementById('art-tooltip');
+    svgRoot.querySelectorAll('.art-day').forEach(g => {
+      const showTt = e => {
+        const date = g.dataset.date;
+        const k = g.dataset.k;
+        const y = g.dataset.y;
+        const both = g.dataset.both;
+        const anniv = g.dataset.anniv;
+        const [_, mm, dd] = date.split('-');
+        tt.innerHTML = `<b>${parseInt(mm,10)}月${parseInt(dd,10)}日</b><br>こうき: ${escapeHtml(k)} / ゆい: ${escapeHtml(y)}${both ? '<br>💗 被り' : ''}${anniv ? `<br>🌸 ${escapeHtml(anniv)}` : ''}`;
+        tt.style.display = 'block';
+        const rect = g.getBoundingClientRect();
+        tt.style.left = `${rect.left}px`;
+        tt.style.top = `${rect.top - 60}px`;
+      };
+      g.onmouseenter = showTt;
+      g.onmouseleave = () => { tt.style.display = 'none'; };
+      g.onclick = showTt;
+    });
   }
 }
 
@@ -4245,6 +4297,18 @@ async function init() {
   document.getElementById('report-overlay').onclick = e => {
     if (e.target.id === 'report-overlay') closeReportSheet();
   };
+  const artShareBtn = document.getElementById('art-share-btn');
+  if (artShareBtn) artShareBtn.onclick = async () => {
+    const svgEl = document.getElementById('art-svg');
+    if (!svgEl) return;
+    try {
+      const blob = await svgToPng(svgEl, 2400, 800);
+      await shareOrDownload(blob, `${yearViewYear}-art.png`);
+    } catch (e) {
+      console.error('[art] export failed:', e);
+      alert('画像の保存に失敗しました');
+    }
+  };
   document.getElementById('settings-close').onclick = closeSettings;
   document.getElementById('settings-cancel').onclick = closeSettings;
   document.getElementById('settings-overlay').onclick = e => { if (e.target.id==='settings-overlay') closeSettings(); };
@@ -4635,6 +4699,22 @@ function getMergedEvents() {
   return mergeEventsWithShifts(EVENTS, firestoreShifts);
 }
 
+async function svgToPng(svgEl, width, height) {
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute('width', width);
+  clone.setAttribute('height', height);
+  const svgString = new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+  URL.revokeObjectURL(url);
+  return await new Promise(r => canvas.toBlob(r, 'image/png'));
+}
+
 async function shareOrDownload(blob, filename) {
   const file = new File([blob], filename, { type: blob.type || 'image/png' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -4830,6 +4910,138 @@ const Report = {
     ctx.fillText('💗 karenda — ふたりのカレンダー', W / 2, H - 80);
 
     return await new Promise(res => canvas.toBlob(res, 'image/png'));
+  },
+};
+
+const Art = {
+  OFF_LABELS: new Set(['休', '希望休', '有']),
+  VIEW_W: 1200,
+  VIEW_H: 400,
+
+  build(year) {
+    const merged = getMergedEvents();
+    const startDate = new Date(year, 0, 1);
+    const daysInYear = ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365;
+    const days = [];
+    const OFF = this.OFF_LABELS;
+    for (let d = 0; d < daysInYear; d++) {
+      const date = new Date(year, 0, 1 + d);
+      const key = dateKey(date.getFullYear(), date.getMonth(), date.getDate());
+      const evs = merged[key] || [];
+      const kOff = evs.some(e => e.person === 'こうき' && OFF.has(e.summary));
+      const yOff = evs.some(e => e.person === 'ゆい' && OFF.has(e.summary));
+      const both = kOff && yOff;
+      const anniv = (allAnniversaries || []).find(a => a.month === date.getMonth() + 1 && a.day === date.getDate());
+      days.push({
+        d, date: key,
+        kouki: !kOff, yui: !yOff, both, anniv: anniv || null,
+        koukiSummary: (evs.find(e => e.person === 'こうき')?.summary) || (kOff ? '休' : '通常'),
+        yuiSummary: (evs.find(e => e.person === 'ゆい')?.summary) || (yOff ? '休' : '通常'),
+      });
+    }
+    const months = [];
+    for (let m = 0; m < 12; m++) {
+      const first = new Date(year, m, 1);
+      const dayIdx = Math.floor((first - startDate) / 86400000);
+      months.push({ m, dayIdx, name: `${m + 1}月` });
+    }
+    return { year, days, months, daysInYear };
+  },
+
+  renderSVG(data, svgRoot) {
+    while (svgRoot.firstChild) svgRoot.removeChild(svgRoot.firstChild);
+    svgRoot.setAttribute('viewBox', `0 0 ${this.VIEW_W} ${this.VIEW_H}`);
+    const step = this.VIEW_W / data.daysInYear;
+    const cy = this.VIEW_H / 2;
+    const styles = getComputedStyle(document.body);
+    const kouki = styles.getPropertyValue('--kouki-meeting').trim() || '#0B3B5C';
+    const yui = styles.getPropertyValue('--yui-meeting').trim() || '#B91C5C';
+    const leaf = styles.getPropertyValue('--leaf').trim() || '#84CC16';
+    const cheek = styles.getPropertyValue('--cheek-deep').trim() || '#B91C5C';
+    const border = styles.getPropertyValue('--border').trim() || 'rgba(0,0,0,0.08)';
+    const muted = styles.getPropertyValue('--muted').trim() || '#8B7A6B';
+
+    const NS = 'http://www.w3.org/2000/svg';
+    data.months.forEach(mo => {
+      const x = mo.dayIdx * step;
+      const line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', x); line.setAttribute('x2', x);
+      line.setAttribute('y1', 40); line.setAttribute('y2', this.VIEW_H - 20);
+      line.setAttribute('stroke', border);
+      line.setAttribute('stroke-width', 1);
+      svgRoot.appendChild(line);
+      const label = document.createElementNS(NS, 'text');
+      label.setAttribute('x', x + 4);
+      label.setAttribute('y', 30);
+      label.setAttribute('font-size', 18);
+      label.setAttribute('fill', muted);
+      label.setAttribute('font-weight', 700);
+      label.textContent = mo.name;
+      svgRoot.appendChild(label);
+    });
+
+    const guide = document.createElementNS(NS, 'line');
+    guide.setAttribute('x1', 0); guide.setAttribute('x2', this.VIEW_W);
+    guide.setAttribute('y1', cy); guide.setAttribute('y2', cy);
+    guide.setAttribute('stroke', border);
+    guide.setAttribute('stroke-width', 1);
+    svgRoot.appendChild(guide);
+
+    data.days.forEach(day => {
+      const x = day.d * step + step / 2;
+      const g = document.createElementNS(NS, 'g');
+      g.classList.add('art-day');
+      g.style.setProperty('--i', String(day.d));
+      g.setAttribute('data-date', day.date);
+      g.setAttribute('data-k', day.koukiSummary);
+      g.setAttribute('data-y', day.yuiSummary);
+      g.setAttribute('data-both', day.both ? '1' : '');
+      g.setAttribute('data-anniv', day.anniv?.name || '');
+
+      if (day.kouki) {
+        const l = document.createElementNS(NS, 'line');
+        l.setAttribute('x1', x); l.setAttribute('x2', x);
+        l.setAttribute('y1', cy); l.setAttribute('y2', cy - 60);
+        l.setAttribute('stroke', kouki);
+        l.setAttribute('stroke-width', Math.max(step * 0.6, 2));
+        l.setAttribute('stroke-linecap', 'round');
+        g.appendChild(l);
+      }
+      if (day.yui) {
+        const l = document.createElementNS(NS, 'line');
+        l.setAttribute('x1', x); l.setAttribute('x2', x);
+        l.setAttribute('y1', cy); l.setAttribute('y2', cy + 60);
+        l.setAttribute('stroke', yui);
+        l.setAttribute('stroke-width', Math.max(step * 0.6, 2));
+        l.setAttribute('stroke-linecap', 'round');
+        g.appendChild(l);
+      }
+      if (day.both) {
+        const c = document.createElementNS(NS, 'circle');
+        c.setAttribute('cx', x); c.setAttribute('cy', cy);
+        c.setAttribute('r', 6);
+        c.setAttribute('fill', leaf);
+        c.setAttribute('opacity', 0.85);
+        c.style.filter = `drop-shadow(0 0 3px ${leaf})`;
+        g.appendChild(c);
+      }
+      if (day.anniv) {
+        const s = document.createElementNS(NS, 'polygon');
+        const cy2 = day.anniv.type === 'birth' ? cy - 80 : cy + 80;
+        const size = 10;
+        const points = [];
+        for (let i = 0; i < 10; i++) {
+          const angle = (Math.PI / 5) * i - Math.PI / 2;
+          const r = i % 2 === 0 ? size : size / 2;
+          points.push(`${x + r * Math.cos(angle)},${cy2 + r * Math.sin(angle)}`);
+        }
+        s.setAttribute('points', points.join(' '));
+        s.setAttribute('fill', cheek);
+        s.setAttribute('opacity', 0.9);
+        g.appendChild(s);
+      }
+      svgRoot.appendChild(g);
+    });
   },
 };
 
