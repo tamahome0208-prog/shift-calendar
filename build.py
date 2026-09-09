@@ -1739,7 +1739,7 @@ body.time-night {
 }
 .unread-badge {
   position: absolute;
-  top: 2px;
+  bottom: 2px;
   right: 2px;
   min-width: 14px;
   height: 14px;
@@ -2616,11 +2616,13 @@ const Storage = {
       readBy: [me],
     };
     const ref = this._doc(firestoreDb, 'notes', dateKey);
-    const snap = await this._getDoc(ref);
-    const existing = snap.exists() ? (snap.data().messages || []) : [];
-    await this._setDoc(ref, {
-      messages: [...existing, msg],
-      updatedAt: new Date(),
+    await this._runTx(firestoreDb, async (tx) => {
+      const snap = await tx.get(ref);
+      const existing = snap.exists() ? (snap.data().messages || []) : [];
+      tx.set(ref, {
+        messages: [...existing, msg],
+        updatedAt: new Date(),
+      });
     });
   },
   async markNoteRead(dateKey, msgIds) {
@@ -2628,15 +2630,21 @@ const Storage = {
     const me = identityStore.get();
     if (!me || !msgIds.length) return;
     const ref = this._doc(firestoreDb, 'notes', dateKey);
-    const snap = await this._getDoc(ref);
-    if (!snap.exists()) return;
-    const messages = (snap.data().messages || []).map(m => {
-      if (msgIds.includes(m.id) && !(m.readBy || []).includes(me)) {
-        return { ...m, readBy: [...(m.readBy || []), me] };
-      }
-      return m;
+    await this._runTx(firestoreDb, async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists()) return;
+      const messages = snap.data().messages || [];
+      let changed = false;
+      const updated = messages.map(m => {
+        if (msgIds.includes(m.id) && !(m.readBy || []).includes(me)) {
+          changed = true;
+          return { ...m, readBy: [...(m.readBy || []), me] };
+        }
+        return m;
+      });
+      if (!changed) return;  // 変更なしなら write 発生させない
+      tx.set(ref, { messages: updated, updatedAt: new Date() });
     });
-    await this._setDoc(ref, { messages, updatedAt: new Date() });
   },
   async init() {
     // 優先順: 1) localStorageで手動上書き 2) firebase-config.js(window) 3) ローカルのみ
@@ -2675,7 +2683,7 @@ const Storage = {
     setSync('syncing');
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js');
     const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-    const { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, setDoc, query, orderBy, getDoc, where } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, setDoc, query, orderBy, getDoc, where, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const app = initializeApp(cfg);
     // 匿名認証: ルールが request.auth != null を要求する場合に必要
     try {
@@ -2688,7 +2696,7 @@ const Storage = {
     }
     firestoreDb = getFirestore(app);
     this._coll = collection(firestoreDb, 'events');
-    this._addDoc = addDoc; this._deleteDoc = deleteDoc; this._doc = doc; this._setDoc = setDoc; this._getDoc = getDoc; this._where = where; this._query = query;
+    this._addDoc = addDoc; this._deleteDoc = deleteDoc; this._doc = doc; this._setDoc = setDoc; this._getDoc = getDoc; this._where = where; this._query = query; this._runTx = runTransaction;
     if (unsubscribe) unsubscribe();
     unsubscribe = onSnapshot(this._coll,
       snap => {
@@ -3537,7 +3545,15 @@ function renderNoteThread(dateKey) {
       thread.appendChild(card);
     });
     if (unreadIds.length && me) {
-      Storage.markNoteRead(dateKey, unreadIds).catch(e => console.error('[note] markRead failed:', e));
+      window.__notesReadCache = window.__notesReadCache || new Set();
+      const cacheKey = `${dateKey}:${unreadIds.sort().join(',')}`;
+      if (!window.__notesReadCache.has(cacheKey)) {
+        window.__notesReadCache.add(cacheKey);
+        Storage.markNoteRead(dateKey, unreadIds).catch(e => {
+          window.__notesReadCache.delete(cacheKey);
+          console.error('[note] markRead failed:', e);
+        });
+      }
     }
   }
   wrap.appendChild(thread);
