@@ -1600,6 +1600,56 @@ body.time-night {
 @media (prefers-reduced-motion: reduce) {
   body { transition: none; }
 }
+
+/* v11.0 💗ボタン + spawnHearts */
+.pulse-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, var(--cheek) 0%, var(--cheek-deep) 100%);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(247, 100, 162, 0.4);
+  transition: transform 0.15s var(--ease-spring);
+  z-index: 5;
+}
+.pulse-btn:active { transform: scale(0.88); }
+.pulse-btn:disabled { opacity: 0.5; cursor: wait; }
+.pulse-btn svg { width: 18px; height: 18px; }
+.pulse-btn-countdown {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted);
+  pointer-events: none;
+}
+.pulse-heart {
+  position: fixed;
+  bottom: 0;
+  font-size: 32px;
+  pointer-events: none;
+  z-index: 9998;
+  animation: heart-fly-up 1.6s cubic-bezier(0.4, 0.2, 0.3, 1) forwards;
+}
+@keyframes heart-fly-up {
+  from { opacity: 0; transform: translateY(0) scale(0.6); }
+  30%  { opacity: 1; }
+  to   { opacity: 0; transform: translateY(-320px) scale(1.2) rotate(15deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-heart { animation: none; opacity: 0; }
+  .pulse-btn { transition: none; }
+}
 </style>
 </head>
 <body>
@@ -1818,6 +1868,10 @@ body.time-night {
 <div id="notice-area"></div>
 
 <section class="hero-card" id="hero-card">
+  <button class="pulse-btn" id="pulse-btn" type="button" aria-label="💗を送る" title="💗を送る">
+    <svg viewBox="0 0 24 24"><use href="#heart"/></svg>
+    <span class="pulse-btn-countdown" id="pulse-btn-countdown"></span>
+  </button>
   <div class="hero-status" id="hero-status">…</div>
   <div class="hero-stats">
     <button class="hero-stat date-stat" id="hero-stat-date" type="button" aria-label="次のデート日にジャンプ">
@@ -2216,6 +2270,58 @@ const identityStore = {
 let firestorePulse = null;
 let unsubscribePulse = null;
 let __lastPulseTs = 0;
+
+function spawnHearts(count = 8) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const container = document.body;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'pulse-heart';
+    el.textContent = '💗';
+    el.style.left = `${Math.random() * 80 + 10}%`;
+    el.style.animationDelay = `${Math.random() * 0.4}s`;
+    el.style.fontSize = `${24 + Math.random() * 20}px`;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 2500);
+  }
+}
+
+function receivePulse(data) {
+  spawnHearts(8);
+  if (navigator.vibrate) {
+    navigator.vibrate([80, 40, 80]);
+  }
+}
+
+let __pulseBtnCooldown = 0;
+async function handlePulseClick() {
+  const me = identityStore.get();
+  if (!me) {
+    alert('まず設定で「あなたは誰?」を選んでください');
+    return;
+  }
+  if (Date.now() < __pulseBtnCooldown) return;
+  __pulseBtnCooldown = Date.now() + 5000;
+  spawnHearts(8);
+  const btn = document.getElementById('pulse-btn');
+  const cd = document.getElementById('pulse-btn-countdown');
+  if (btn) btn.disabled = true;
+  let secs = 5;
+  if (cd) cd.textContent = `${secs}s`;
+  const iv = setInterval(() => {
+    secs -= 1;
+    if (cd) cd.textContent = secs > 0 ? `${secs}s` : '';
+    if (secs <= 0) {
+      clearInterval(iv);
+      if (btn) btn.disabled = false;
+    }
+  }, 1000);
+  try {
+    await Storage.sendPulse('heart');
+  } catch (e) {
+    console.error('[Pulse] send failed:', e);
+  }
+}
 
 // v11.0 Ambient: Favicon SVG テンプレート
 const FAV_TEMPLATES = {
@@ -3811,6 +3917,8 @@ async function init() {
     document.getElementById('f-time-fields').style.display = formTimeOn ? 'block' : 'none';
   };
   document.getElementById('settings-btn').onclick = openSettings;
+  const pulseBtn = document.getElementById('pulse-btn');
+  if (pulseBtn) pulseBtn.onclick = handlePulseClick;
   document.getElementById('settings-close').onclick = closeSettings;
   document.getElementById('settings-cancel').onclick = closeSettings;
   document.getElementById('settings-overlay').onclick = e => { if (e.target.id==='settings-overlay') closeSettings(); };
