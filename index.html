@@ -2581,13 +2581,20 @@ const Storage = {
       firestoreShifts = next;
       render();
     });
-    // v11.0 signals/pulse purchase
+    // v11.0 signals/pulse subscribe
     if (unsubscribePulse) unsubscribePulse();
+    let __pulseInitialized = false;
     unsubscribePulse = onSnapshot(this._doc(firestoreDb, 'signals', 'pulse'), snap => {
       const data = snap.data();
       if (!data) return;
-      const me = identityStore.get();
       const ts = data.ts?.toMillis ? data.ts.toMillis() : 0;
+      // 初回発火はページロード時の既存 doc なので、baseline としてts記録のみ、通知は発火させない
+      if (!__pulseInitialized) {
+        __pulseInitialized = true;
+        __lastPulseTs = ts;
+        return;
+      }
+      const me = identityStore.get();
       if (!me || data.from === me || ts <= __lastPulseTs) return;
       __lastPulseTs = ts;
       if (typeof receivePulse === 'function') receivePulse(data);
