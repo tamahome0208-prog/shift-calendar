@@ -1782,6 +1782,25 @@ body.time-night {
 @media (prefers-reduced-motion: reduce) {
   #partner-cursor { transition: opacity 0.3s ease; }
 }
+/* v11.7 重ねタッチ */
+.cell.overlap-celebrated {
+  animation: overlap-glow 1.2s ease;
+}
+@keyframes overlap-glow {
+  0%   { background: rgba(87, 176, 220, 0.4); }
+  33%  { background: rgba(183, 100, 220, 0.4); }
+  66%  { background: rgba(247, 100, 162, 0.4); }
+  100% { background: rgba(255, 200, 100, 0.4); }
+}
+@keyframes overlap-toast {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+  15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  85%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cell.overlap-celebrated { animation: none; }
+}
 </style>
 </head>
 <body>
@@ -2849,6 +2868,7 @@ const Storage = {
       snap.forEach(doc => { next[doc.id] = doc.data(); });
       firestorePresence = next;
       if (typeof PartnerCursor !== 'undefined') PartnerCursor.update();
+      if (typeof OverlapDetector !== 'undefined') OverlapDetector.check();
     }, err => {
       console.error('[presence] listen error:', err);
     });
@@ -3519,6 +3539,10 @@ function render() {
       const rx = ev.clientX / window.innerWidth;
       const ry = ev.clientY / window.innerHeight;
       presenceStore.updatePosition(rx, ry, key);
+      if (typeof OverlapDetector !== 'undefined') {
+        OverlapDetector.onMyCellChange(key);
+        OverlapDetector.check();
+      }
     });
     cell.onclick = (ev) => {
       if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -4286,6 +4310,10 @@ async function init() {
     const cellEl = target?.closest?.('.cell');
     const cellKey = cellEl?.dataset?.key || null;
     presenceStore.updatePosition(rx, ry, cellKey);
+    if (typeof OverlapDetector !== 'undefined') {
+      OverlapDetector.onMyCellChange(cellKey);
+      OverlapDetector.check();
+    }
   }, { passive: true });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
@@ -5333,6 +5361,64 @@ const PartnerCursor = {
     document.querySelectorAll('.cell.partner-hover').forEach(c => c.classList.remove('partner-hover'));
   },
 };
+
+const OverlapDetector = {
+  HOLD_MS: 2000,
+  COOLDOWN_MS: 10000,
+  currentMyCell: null,
+  matchStartTs: 0,
+  lastFireTs: 0,
+
+  onMyCellChange(cellKey) {
+    if (this.currentMyCell === cellKey) return;
+    this.currentMyCell = cellKey;
+    this.matchStartTs = 0;
+  },
+
+  check() {
+    const me = identityStore.get();
+    if (!me) return;
+    const partnerKey = me === 'kouki' ? 'yui' : 'kouki';
+    const partner = firestorePresence[partnerKey];
+    if (!partner || !partner.active || !partner.cell) {
+      this.matchStartTs = 0;
+      return;
+    }
+    if (this.currentMyCell !== partner.cell) {
+      this.matchStartTs = 0;
+      return;
+    }
+    if (Date.now() - this.lastFireTs < this.COOLDOWN_MS) return;
+    if (this.matchStartTs === 0) {
+      this.matchStartTs = Date.now();
+      return;
+    }
+    if (Date.now() - this.matchStartTs >= this.HOLD_MS) {
+      this.lastFireTs = Date.now();
+      this.matchStartTs = 0;
+      spawnOverlapCelebration(this.currentMyCell);
+    }
+  },
+};
+
+function spawnOverlapCelebration(cellKey) {
+  if (cellKey && /^\d{4}-\d{2}-\d{2}$/.test(cellKey)) {
+    try {
+      const cell = document.querySelector(`.cell[data-key="${cellKey}"]`);
+      if (cell) {
+        cell.classList.add('overlap-celebrated');
+        setTimeout(() => cell.classList.remove('overlap-celebrated'), 1200);
+      }
+    } catch (e) { /* ignore */ }
+  }
+  if (typeof spawnHearts === 'function') spawnHearts(12);
+  if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+  const toast = document.createElement('div');
+  toast.textContent = '💗 重ねタッチ!';
+  toast.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--cheek),var(--cheek-deep));color:white;padding:12px 24px;border-radius:24px;font-weight:900;font-size:16px;z-index:10002;box-shadow:0 6px 16px rgba(247,100,162,0.4);animation:overlap-toast 2s ease forwards;';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2200);
+}
 
 let pendingShiftOut = null;
 let pendingShiftIn = null;
