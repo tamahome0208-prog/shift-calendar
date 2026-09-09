@@ -4233,7 +4233,7 @@ async function init() {
     if (!__reportBlob) return;
     const y = document.getElementById('report-year').value;
     const m = String(parseInt(document.getElementById('report-month').value, 10)).padStart(2, '0');
-    shareOrDownload(__reportBlob, `${y}-${m}-report.png`);
+    downloadBlob(__reportBlob, `${y}-${m}-report.png`);
   };
   const reportShare = document.getElementById('report-share');
   if (reportShare) reportShare.onclick = () => {
@@ -4654,6 +4654,16 @@ async function shareOrDownload(blob, filename) {
   setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
 }
 
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
+}
+
 const Report = {
   OFF_LABELS: new Set(['休', '希望休', '有']),
   SEASON_EMOJI: {1:'🎍',2:'🌸',3:'🌸',4:'🌸',5:'🌱',6:'☔',7:'🌻',8:'🌊',9:'🍁',10:'🍁',11:'🍂',12:'❄️'},
@@ -4732,10 +4742,10 @@ const Report = {
 
     // Header
     ctx.fillStyle = kouki;
-    ctx.font = '900 68px sans-serif';
+    ctx.font = '900 68px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText(`${data.seasonEmoji} ${data.year}年 ${data.month + 1}月`, 60, 140);
-    ctx.font = '700 40px sans-serif';
+    ctx.font = '700 40px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
     ctx.fillStyle = muted;
     ctx.fillText('ふたりの記録', 60, 200);
 
@@ -4762,26 +4772,38 @@ const Report = {
         ctx.roundRect(x, cardY, cardW, 300, r);
         ctx.fill();
       } else {
-        ctx.fillRect(x, cardY, cardW, 300);
+        // roundRect fallback: 手動 path で角丸描画
+        ctx.beginPath();
+        ctx.moveTo(x + r, cardY);
+        ctx.lineTo(x + cardW - r, cardY);
+        ctx.quadraticCurveTo(x + cardW, cardY, x + cardW, cardY + r);
+        ctx.lineTo(x + cardW, cardY + 300 - r);
+        ctx.quadraticCurveTo(x + cardW, cardY + 300, x + cardW - r, cardY + 300);
+        ctx.lineTo(x + r, cardY + 300);
+        ctx.quadraticCurveTo(x, cardY + 300, x, cardY + 300 - r);
+        ctx.lineTo(x, cardY + r);
+        ctx.quadraticCurveTo(x, cardY, x + r, cardY);
+        ctx.closePath();
+        ctx.fill();
       }
       ctx.fillStyle = 'white';
-      ctx.font = '700 28px sans-serif';
+      ctx.font = '700 28px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(c.label, x + cardW / 2, cardY + 60);
-      ctx.font = '900 120px sans-serif';
+      ctx.font = '900 120px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
       ctx.fillText(String(c.value), x + cardW / 2, cardY + 200);
-      ctx.font = '700 32px sans-serif';
+      ctx.font = '700 32px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
       ctx.fillText(c.unit, x + cardW / 2, cardY + 260);
     });
 
     // Highlights
     let y = 720;
     ctx.fillStyle = text;
-    ctx.font = '900 44px sans-serif';
+    ctx.font = '900 44px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('ハイライト', 60, y);
     y += 60;
-    ctx.font = '700 36px sans-serif';
+    ctx.font = '700 36px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
     data.highlights.slice(0, 5).forEach(h => {
       ctx.fillText(`${h.icon}  ${h.text}`, 80, y);
       y += 60;
@@ -4790,10 +4812,10 @@ const Report = {
     // Notable
     if (data.notable.length) {
       y += 40;
-      ctx.font = '900 44px sans-serif';
+      ctx.font = '900 44px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
       ctx.fillText('気になる出来事', 60, y);
       y += 60;
-      ctx.font = '700 32px sans-serif';
+      ctx.font = '700 32px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
       ctx.fillStyle = muted;
       data.notable.slice(0, 4).forEach(n => {
         ctx.fillText(`• ${n}`, 80, y);
@@ -4802,7 +4824,7 @@ const Report = {
     }
 
     // Footer
-    ctx.font = '700 32px sans-serif';
+    ctx.font = '700 32px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
     ctx.fillStyle = muted;
     ctx.textAlign = 'center';
     ctx.fillText('💗 karenda — ふたりのカレンダー', W / 2, H - 80);
@@ -4836,7 +4858,9 @@ async function openReportSheet(year, month) {
     const canvas = document.createElement('canvas');
     __reportBlob = await Report.drawCanvas(data, canvas);
     const img = document.createElement('img');
-    img.src = URL.createObjectURL(__reportBlob);
+    const previewUrl = URL.createObjectURL(__reportBlob);
+    img.src = previewUrl;
+    img.onload = () => URL.revokeObjectURL(previewUrl);
     img.style.cssText = 'width:100%;max-width:400px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
     preview.appendChild(img);
     status.textContent = '';
@@ -4852,7 +4876,13 @@ function closeReportSheet() {
   const overlay = document.getElementById('report-overlay');
   overlay.classList.remove('open');
   overlay.setAttribute('aria-hidden', 'true');
-  document.getElementById('report-preview').innerHTML = '';
+  const preview = document.getElementById('report-preview');
+  // 既存 img の URL を revoke
+  const oldImg = preview.querySelector('img');
+  if (oldImg && oldImg.src.startsWith('blob:')) {
+    try { URL.revokeObjectURL(oldImg.src); } catch(e) {}
+  }
+  preview.innerHTML = '';
   __reportBlob = null;
 }
 
