@@ -23,5 +23,10 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // v11.0 notes - 交換日記スレッド
+    match /notes/{dateKey} {
+      allow read, write: if request.auth != null;
+    }
+
   }
 }

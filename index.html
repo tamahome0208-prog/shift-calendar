@@ -1650,6 +1650,95 @@ body.time-night {
   .pulse-heart { animation: none; opacity: 0; }
   .pulse-btn { transition: none; }
 }
+/* v11.0 交換日記スレッド */
+.note-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 4px;
+  margin-bottom: 10px;
+}
+.note-msg {
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  max-width: 78%;
+  word-break: break-word;
+  line-height: 1.4;
+  position: relative;
+}
+.note-msg.me {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--kouki-meeting) 0%, #1B5577 100%);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+.note-msg.them {
+  align-self: flex-start;
+  background: var(--surface-soft);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+.note-msg.them.unread {
+  border-color: var(--cheek-deep);
+  background: rgba(247, 100, 162, 0.05);
+}
+.note-meta {
+  font-size: 10px;
+  opacity: 0.72;
+  margin-top: 2px;
+  display: flex;
+  gap: 6px;
+}
+.note-input-row {
+  display: flex;
+  gap: 6px;
+  padding: 6px 4px;
+  border-top: 1px solid var(--border);
+}
+.note-input-row input {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  font-size: 13px;
+}
+.note-input-row button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: var(--cheek-deep);
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+.note-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 12px 0;
+}
+.unread-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--cheek-deep);
+  color: white;
+  font-size: 9px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
 </style>
 </head>
 <body>
@@ -2270,6 +2359,8 @@ const identityStore = {
 let firestorePulse = null;
 let unsubscribePulse = null;
 let __lastPulseTs = 0;
+let firestoreNotes = {};  // { "2026-08-15": { messages: [...], updatedAt } }
+let unsubscribeNotes = null;
 
 function spawnHearts(count = 8) {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -2496,6 +2587,41 @@ const Storage = {
       kind,
     });
   },
+  async appendNote(dateKey, text) {
+    if (!firestoreDb) return;
+    const me = identityStore.get();
+    if (!me || !text.trim()) return;
+    const trimmed = text.trim().slice(0, 200);
+    const msg = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      from: me,
+      text: trimmed,
+      ts: Date.now(),
+      readBy: [me],
+    };
+    const ref = this._doc(firestoreDb, 'notes', dateKey);
+    const snap = await this._getDoc(ref);
+    const existing = snap.exists() ? (snap.data().messages || []) : [];
+    await this._setDoc(ref, {
+      messages: [...existing, msg],
+      updatedAt: new Date(),
+    });
+  },
+  async markNoteRead(dateKey, msgIds) {
+    if (!firestoreDb) return;
+    const me = identityStore.get();
+    if (!me || !msgIds.length) return;
+    const ref = this._doc(firestoreDb, 'notes', dateKey);
+    const snap = await this._getDoc(ref);
+    if (!snap.exists()) return;
+    const messages = (snap.data().messages || []).map(m => {
+      if (msgIds.includes(m.id) && !(m.readBy || []).includes(me)) {
+        return { ...m, readBy: [...(m.readBy || []), me] };
+      }
+      return m;
+    });
+    await this._setDoc(ref, { messages, updatedAt: new Date() });
+  },
   async init() {
     // 優先順: 1) localStorageで手動上書き 2) firebase-config.js(window) 3) ローカルのみ
     let cfg = null;
@@ -2533,7 +2659,7 @@ const Storage = {
     setSync('syncing');
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js');
     const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js');
-    const { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, setDoc, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, setDoc, query, orderBy, getDoc, where } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
     const app = initializeApp(cfg);
     // 匿名認証: ルールが request.auth != null を要求する場合に必要
     try {
@@ -2546,7 +2672,7 @@ const Storage = {
     }
     firestoreDb = getFirestore(app);
     this._coll = collection(firestoreDb, 'events');
-    this._addDoc = addDoc; this._deleteDoc = deleteDoc; this._doc = doc; this._setDoc = setDoc;
+    this._addDoc = addDoc; this._deleteDoc = deleteDoc; this._doc = doc; this._setDoc = setDoc; this._getDoc = getDoc; this._where = where; this._query = query;
     if (unsubscribe) unsubscribe();
     unsubscribe = onSnapshot(this._coll,
       snap => {
@@ -2600,6 +2726,27 @@ const Storage = {
       if (typeof receivePulse === 'function') receivePulse(data);
       else console.log('[Pulse] received (no receiver yet):', data);
     });
+    // v11.0 notes subscribe(現月+前後1ヶ月)
+    this._collNotes = collection(firestoreDb, 'notes');
+    if (unsubscribeNotes) unsubscribeNotes();
+    const rebuildNotesListener = () => {
+      if (unsubscribeNotes) unsubscribeNotes();
+      const y = viewYear;
+      const m = viewMonth;
+      const start = new Date(y, m - 1, 1);
+      const end = new Date(y, m + 2, 0);
+      const startKey = dateKey(start.getFullYear(), start.getMonth(), start.getDate());
+      const endKey = dateKey(end.getFullYear(), end.getMonth(), end.getDate());
+      const q = this._query(this._collNotes, this._where('__name__', '>=', startKey), this._where('__name__', '<=', endKey));
+      unsubscribeNotes = onSnapshot(q, snap => {
+        const next = {};
+        snap.forEach(doc => { next[doc.id] = doc.data(); });
+        firestoreNotes = next;
+        render();
+      });
+    };
+    rebuildNotesListener();
+    window.__rebuildNotesListener = rebuildNotesListener;
   },
   async add(ev) {
     if (firestoreDb) {
@@ -3112,6 +3259,13 @@ function render() {
     if ((HOLIDAYS_BY_YEAR[y] || []).includes(key)) num.classList.add('holiday');
     num.textContent = d;
     if (key === todayKey) cell.classList.add('today');
+    const unreadCount = (typeof computeUnreadForDay === 'function') ? computeUnreadForDay(key) : 0;
+    if (unreadCount > 0) {
+      const badge = document.createElement('div');
+      badge.className = 'unread-badge';
+      badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+      cell.appendChild(badge);
+    }
 
     const builtinForDay = (MERGED[key] || []);
     if (isBothOff(builtinForDay)) {
@@ -3319,6 +3473,7 @@ function refreshDaySheet() {
     `;
     body.appendChild(row);
   });
+  body.appendChild(renderNoteThread(key));
 }
 function findDateMemo(key) {
   return allCustomEvents.find(e => e.type === 'memo' && e.date === key);
@@ -3332,6 +3487,79 @@ const MEMO_TEMPLATES = [
   'お家でゆっくり',
   'お出かけ',
 ];
+
+function renderNoteThread(dateKey) {
+  const wrap = document.createElement('div');
+  wrap.className = 'note-thread-wrap';
+  const me = identityStore.get();
+  const doc = firestoreNotes[dateKey] || { messages: [] };
+  const messages = doc.messages || [];
+
+  const title = document.createElement('div');
+  title.style.cssText = 'font-weight:800;font-size:13px;color:var(--text-2);margin-bottom:6px;';
+  title.textContent = '💬 交換日記';
+  wrap.appendChild(title);
+
+  const thread = document.createElement('div');
+  thread.className = 'note-thread';
+  if (!messages.length) {
+    const empty = document.createElement('div');
+    empty.className = 'note-empty';
+    empty.textContent = 'まだメッセージはありません';
+    thread.appendChild(empty);
+  } else {
+    const unreadIds = [];
+    messages.forEach(m => {
+      const isMe = m.from === me;
+      const isUnread = !isMe && !(m.readBy || []).includes(me);
+      if (isUnread) unreadIds.push(m.id);
+      const card = document.createElement('div');
+      card.className = `note-msg ${isMe ? 'me' : 'them'}${isUnread ? ' unread' : ''}`;
+      const sender = m.from === 'kouki' ? 'こうき' : 'ゆい';
+      const time = new Date(m.ts).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      card.innerHTML = `<div>${escapeHtml(m.text)}</div><div class="note-meta">${sender} · ${time}${isMe && (m.readBy || []).length > 1 ? ' · ✓既読' : ''}</div>`;
+      thread.appendChild(card);
+    });
+    if (unreadIds.length && me) {
+      Storage.markNoteRead(dateKey, unreadIds).catch(e => console.error('[note] markRead failed:', e));
+    }
+  }
+  wrap.appendChild(thread);
+  requestAnimationFrame(() => { thread.scrollTop = thread.scrollHeight; });
+
+  const inputRow = document.createElement('div');
+  inputRow.className = 'note-input-row';
+  inputRow.innerHTML = `<input type="text" placeholder="${me ? 'メッセージを書く…' : 'まず設定で自分を選んでね'}" maxlength="200"${me ? '' : ' disabled'}><button type="button"${me ? '' : ' disabled'}>送信</button>`;
+  const input = inputRow.querySelector('input');
+  const send = inputRow.querySelector('button');
+  const doSend = async () => {
+    const txt = input.value.trim();
+    if (!txt) return;
+    input.value = '';
+    send.disabled = true;
+    try {
+      await Storage.appendNote(dateKey, txt);
+    } catch (e) {
+      console.error('[note] send failed:', e);
+      alert('送信失敗: ' + (e.message || e));
+    } finally {
+      send.disabled = !me;
+    }
+  };
+  send.onclick = doSend;
+  input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); } };
+  wrap.appendChild(inputRow);
+
+  return wrap;
+}
+
+function computeUnreadForDay(key) {
+  const me = identityStore.get();
+  if (!me) return 0;
+  const doc = firestoreNotes[key];
+  if (!doc || !doc.messages) return 0;
+  return doc.messages.filter(m => m.from !== me && !(m.readBy || []).includes(me)).length;
+}
 
 function buildDateMemoCard(key) {
   const wrap = document.createElement('div');
@@ -4326,6 +4554,7 @@ function shift(delta) {
   if (!topRow || reduced) {
     render();
     saveLastView();
+    if (window.__rebuildNotesListener) window.__rebuildNotesListener();
     return;
   }
   // 前回の未完了タイマーとクラスを一掃(連打時の残留対策)
@@ -4339,6 +4568,7 @@ function shift(delta) {
     pendingShiftOut = null;
     render();
     saveLastView();
+    if (window.__rebuildNotesListener) window.__rebuildNotesListener();
     topRow.classList.remove(outCls);
     topRow.classList.add(inCls);
     pendingShiftIn = setTimeout(() => {
