@@ -2351,16 +2351,16 @@ body.time-night {
   <div class="sheet" style="max-height: 92vh;">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
-      <div class="sheet-title" id="shift-upload-title">シフトPDFをアップロード</div>
+      <div class="sheet-title" id="shift-upload-title">シフト表をアップロード</div>
       <button class="icon-btn" id="shift-upload-close" aria-label="閉じる"><svg><use href="#i-x"/></svg></button>
     </div>
     <div class="sheet-body" id="shift-upload-body">
       <div id="shift-upload-step1">
         <label class="btn btn-primary" style="display:block;text-align:center;padding:14px;font-size:14px;cursor:pointer;">
           ファイルを選ぶ
-          <input type="file" id="shift-upload-input" accept="application/pdf" style="display:none;">
+          <input type="file" id="shift-upload-input" accept="application/pdf,.pdf,.xlsx,.xlsm,.xls" style="display:none;">
         </label>
-        <div id="shift-upload-status" style="margin-top:12px;font-size:13px;color:var(--muted);text-align:center;">PDFファイル(30MB以下)</div>
+        <div id="shift-upload-status" style="margin-top:12px;font-size:13px;color:var(--muted);text-align:center;">PDF / Excel ファイル(30MB以下)</div>
       </div>
       <div id="shift-upload-step2" style="display:none;">
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
@@ -4012,7 +4012,7 @@ function renderSettingsAnniv() {
   const addBtn = document.getElementById('anniv-add-toggle');
   if (addBtn) addBtn.style.display = 'inline-flex';
 }
-const SHIFT_UPLOAD_LABELS = ['(通常勤務)', '休', '希望休', '有', '会議', '出店', 'A', 'MTG', '出張', 'その他'];
+const SHIFT_UPLOAD_LABELS = ['(通常勤務)', '休', '希望休', '有', '会議', '出店', 'A', 'B', 'C', 'MTG', '出張', 'その他'];
 let __pendingShift = null;
 
 function openShiftUpload() {
@@ -4021,7 +4021,7 @@ function openShiftUpload() {
   document.getElementById('shift-upload-overlay').classList.add('open');
   document.getElementById('shift-upload-overlay').setAttribute('aria-hidden', 'false');
   showUploadStep(1);
-  document.getElementById('shift-upload-status').textContent = 'PDFファイル(30MB以下)';
+  document.getElementById('shift-upload-status').textContent = 'PDF / Excel ファイル(30MB以下)';
   document.getElementById('shift-upload-status').style.color = 'var(--muted)';
 }
 function closeShiftUpload() {
@@ -4043,11 +4043,13 @@ async function handleShiftFile(file) {
   status.textContent = '解析中...';
   status.style.color = 'var(--muted)';
   try {
-    const result = await ShiftPDFParser.parse(file);
+    // 2人が別店舗(こうき=室蘭 xlsx / ゆい=登別 PDF)のため両形式を受け付ける
+    const isExcel = /\.(xlsx|xlsm|xls)$/i.test(file.name);
+    const result = await (isExcel ? ShiftXLSXParser : ShiftPDFParser).parse(file);
     // パース中に close されていたら早期リターン
     const overlay = document.getElementById('shift-upload-overlay');
     if (!overlay.classList.contains('open')) return;
-    __pendingShift = { ym: result.ym, events: result.events, sourceFilename: file.name };
+    __pendingShift = { ym: result.ym, events: result.events, persons: result.persons, sourceFilename: file.name };
     showUploadStep(2);
     renderShiftPreview();
   } catch (err) {
@@ -4055,7 +4057,7 @@ async function handleShiftFile(file) {
     const overlay = document.getElementById('shift-upload-overlay');
     if (!overlay.classList.contains('open')) return;
     if (err.code === 'COLUMN_NOT_FOUND') {
-      __pendingShift = { ym: err.detectedYm, events: [], sourceFilename: file.name };
+      __pendingShift = { ym: err.detectedYm, events: [], persons: [], sourceFilename: file.name };
       status.textContent = '列を検出できず。手動入力してください。';
       status.style.color = '#B91C1C';
       showUploadStep(2);
@@ -4067,7 +4069,7 @@ async function handleShiftFile(file) {
       status.textContent = 'このPDFにはページが含まれていません';
       status.style.color = '#B91C1C';
     } else {
-      status.textContent = 'PDFを読み込めませんでした: ' + (err.message || 'unknown error');
+      status.textContent = 'ファイルを読み込めませんでした: ' + (err.message || 'unknown error');
       status.style.color = '#B91C1C';
     }
     const inp = document.getElementById('shift-upload-input');
@@ -4104,6 +4106,19 @@ function renderShiftPreview(showError = false) {
   const y = parseInt(ySel.value, 10);
   const m = parseInt(mSel.value, 10);
   const days = new Date(y, m, 0).getDate();
+  // 保存は月単位の上書きなので、ファイルに列が無い人は保存済みのシフトを引き継ぐ
+  const filePersons = __pendingShift.persons || [];
+  const curYm = `${y}-${String(m).padStart(2, '0')}`;
+  const kept = existingShiftEvents(curYm).filter(e => !filePersons.includes(e.person));
+  __pendingShift.events = [...__pendingShift.events.filter(e => filePersons.includes(e.person)), ...kept];
+  const missing = ['こうき', 'ゆい'].filter(p => !filePersons.includes(p));
+  if (!showError && missing.length) {
+    const infoBar = document.createElement('div');
+    infoBar.className = 'shift-upload-error';
+    infoBar.style.color = 'var(--muted)';
+    infoBar.textContent = `このファイルに${missing.join('・')}の列はありません。${missing.join('・')}は保存済みのシフトをそのまま残します。`;
+    wrap.appendChild(infoBar);
+  }
   // 月切替で新月の範囲外にある events は保存時に紛れ込むので除去
   __pendingShift.events = __pendingShift.events.filter(e => e.d >= 1 && e.d <= days);
   const events = __pendingShift.events;
@@ -4127,6 +4142,17 @@ function renderShiftPreview(showError = false) {
   wrap.querySelectorAll('.shift-upload-cell').forEach(cell => {
     cell.onclick = () => makeCellEditable(cell);
   });
+}
+function existingShiftEvents(ym) {
+  const out = [];
+  for (const [k, evs] of Object.entries(getMergedEvents())) {
+    if (!k.startsWith(ym + '-')) continue;
+    const d = parseInt(k.slice(8), 10);
+    for (const e of evs || []) {
+      if (e.person === 'こうき' || e.person === 'ゆい') out.push({ d, person: e.person, summary: e.summary });
+    }
+  }
+  return out;
 }
 function makeCellEditable(cell) {
   if (cell.querySelector('select')) return;
@@ -4530,8 +4556,13 @@ async function init() {
 
   const shiftYear = document.getElementById('shift-upload-year');
   const shiftMonth = document.getElementById('shift-upload-month');
-  if (shiftYear) shiftYear.onchange = () => renderShiftPreview();
-  if (shiftMonth) shiftMonth.onchange = () => renderShiftPreview();
+  const onShiftYmChange = () => {
+    if (!__pendingShift) return;
+    __pendingShift.ym = `${shiftYear.value}-${String(parseInt(shiftMonth.value, 10)).padStart(2, '0')}`;
+    renderShiftPreview();
+  };
+  if (shiftYear) shiftYear.onchange = onShiftYmChange;
+  if (shiftMonth) shiftMonth.onchange = onShiftYmChange;
 
   document.getElementById('shift-upload-overlay').onclick = e => {
     if (e.target.id === 'shift-upload-overlay') closeShiftUpload();
@@ -4748,19 +4779,23 @@ const ShiftPDFParser = {
 
     const ym = this._detectYearMonth(items);
 
-    const koukiCol = items.find(it => it.str === this.KOUKI_NAME);
-    const yuiCol = items.find(it => it.str === this.YUI_NAME);
-    if (!koukiCol || !yuiCol) {
+    // 2人は別店舗のため、どちらか片方の列だけでも取り込む
+    // 欄外メモ(研修・会議欄)にも名前が出るので、一番上(Y最大)にある名前を列見出しとみなす
+    const topmost = name => items.filter(it => it.str === name).sort((a, b) => b.y - a.y)[0];
+    const koukiCol = topmost(this.KOUKI_NAME);
+    const yuiCol = topmost(this.YUI_NAME);
+    if (!koukiCol && !yuiCol) {
       const err = new Error('「安中」「恩田」列が見つかりません');
       err.code = 'COLUMN_NOT_FOUND';
       err.detectedYm = ym;
       throw err;
     }
 
-    // 全スタッフ列のX座標を集めて「他列のほうが近いテキスト」を除外可能にする
-    const STAFF_NAMES = ['安中','大門','山本','五味淵','佐々木','原田','恩田','杉本','斉藤','梨本','住吉','佐々木(佑)','前田'];
+    // 見出し行(名前の並ぶ行)の全テキストを列X座標とし「他列のほうが近いテキスト」を除外する
+    // (スタッフ名を固定リストにすると異動で補正が効かなくなるため自動検出)
+    const headerY = (koukiCol || yuiCol).y;
     const allColumnXs = items
-      .filter(it => STAFF_NAMES.includes(it.str))
+      .filter(it => Math.abs(it.y - headerY) <= this.ROW_Y_TOLERANCE)
       .map(it => it.x);
 
     const rows = this._groupByRow(items, this.ROW_Y_TOLERANCE);
@@ -4769,11 +4804,13 @@ const ShiftPDFParser = {
     for (const row of rows) {
       const first = row[0];
       if (!first) continue;
+      // 「11月」(見出し行)を parseInt で 11日 と誤認しないよう数字のみのセルに限定
+      if (!/^\d{1,2}$/.test(first.str)) continue;
       const day = parseInt(first.str, 10);
-      if (!Number.isInteger(day) || day < 1 || day > 31) continue;
+      if (day < 1 || day > 31) continue;
 
-      const kLabel = this._nearestByX(row, koukiCol.x, allColumnXs);
-      const yLabel = this._nearestByX(row, yuiCol.x, allColumnXs);
+      const kLabel = koukiCol && this._nearestByX(row, koukiCol.x, allColumnXs);
+      const yLabel = yuiCol && this._nearestByX(row, yuiCol.x, allColumnXs);
       if (kLabel && kLabel !== String(day)) {
         events.push({ d: day, person: this.KOUKI_DISPLAY, summary: kLabel });
       }
@@ -4782,7 +4819,8 @@ const ShiftPDFParser = {
       }
     }
 
-    return { ym, events };
+    const persons = [koukiCol && this.KOUKI_DISPLAY, yuiCol && this.YUI_DISPLAY].filter(Boolean);
+    return { ym, events, persons };
   },
 
   _detectYearMonth(items) {
@@ -4841,6 +4879,75 @@ const ShiftPDFParser = {
       }
     }
     return best;
+  },
+};
+
+let __xlsxLib = null;
+async function loadXlsx() {
+  if (__xlsxLib) return __xlsxLib;
+  __xlsxLib = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs');
+  return __xlsxLib;
+}
+
+// 室蘭店の勤務表(xlsx): 名前の並ぶ見出し行 + A列に日付の行が続く形式
+const ShiftXLSXParser = {
+  async parse(file) {
+    if (file.size > ShiftPDFParser.MAX_BYTES) {
+      throw new Error('ファイルサイズが大きすぎます(30MB超)');
+    }
+    const XLSX = await loadXlsx();
+    const wb = XLSX.read(await file.arrayBuffer());
+    const names = { [ShiftPDFParser.KOUKI_NAME]: ShiftPDFParser.KOUKI_DISPLAY, [ShiftPDFParser.YUI_NAME]: ShiftPDFParser.YUI_DISPLAY };
+    const str = v => (v == null ? '' : String(v).trim());
+
+    // 「安中」「恩田」の見出しがある最初のシートを採用(連勤チェック等の補助シートは無視)
+    let rows = null, headerIdx = -1;
+    for (const sn of wb.SheetNames) {
+      const ws = wb.Sheets[sn];
+      const ref = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+      const r = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: true, range: { s: { r: 0, c: 0 }, e: ref.e } });
+      const idx = r.slice(0, 30).findIndex(row => (row || []).some(v => str(v) in names));
+      if (idx >= 0) { rows = r; headerIdx = idx; break; }
+    }
+
+    const toYmd = v => {
+      if (typeof v !== 'number' || v < 1 || v > 100000) return null;
+      const dt = new Date(Math.round((v - 25569) * 864e5));  // Excel シリアル値 → UTC
+      return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
+    };
+
+    let ym = null;
+    const title = (rows || []).slice(0, Math.max(headerIdx, 1)).flat().map(str).join(' ');
+    const mt = title.match(/(\d{4})年\s*(\d{1,2})月/);
+    if (mt) ym = `${mt[1]}-${String(parseInt(mt[2], 10)).padStart(2, '0')}`;
+
+    if (!rows) {
+      const err = new Error('「安中」「恩田」列が見つかりません');
+      err.code = 'COLUMN_NOT_FOUND';
+      err.detectedYm = ym;
+      throw err;
+    }
+
+    const cols = [];
+    rows[headerIdx].forEach((v, c) => { if (str(v) in names) cols.push({ c, person: names[str(v)] }); });
+
+    // 見出し下の連続した日付行だけを読む(下にある祝日一覧表などを拾わない)
+    const events = [];
+    let started = false;
+    for (let r = headerIdx + 1; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const dt = toYmd(row[0]);
+      if (!dt) { if (started) break; continue; }
+      started = true;
+      if (!ym) ym = `${dt.y}-${String(dt.m).padStart(2, '0')}`;
+      if (`${dt.y}-${String(dt.m).padStart(2, '0')}` !== ym) continue;  // 前後月のはみ出し行
+      for (const { c, person } of cols) {
+        const v = row[c];
+        if (typeof v === 'number' || !str(v)) continue;
+        events.push({ d: dt.d, person, summary: str(v) });
+      }
+    }
+    return { ym, events, persons: cols.map(x => x.person) };
   },
 };
 
