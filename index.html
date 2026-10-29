@@ -581,6 +581,10 @@ header > * { position: relative; z-index: 1; }
 .event.yui.t-meeting { background: linear-gradient(135deg, var(--yui-meeting) 0%, #B91C5C 110%); }
 .event.yui.t-outing { background: linear-gradient(135deg, var(--yui) 0%, var(--yui-meeting) 110%); color: white; }
 .event.yui.t-outing .event-name { opacity: 0.9; color: white; }
+/* 休み(休/希望休/有)は淡色+点線枠にして、出勤(会議・出張・出店など)の濃い色と見分ける */
+.event.t-rest { text-shadow: none; box-shadow: none; outline: 1.5px dashed currentColor; outline-offset: -1.5px; }
+.event.kouki.t-rest { background: var(--kouki-soft); color: #1B5577; }
+.event.yui.t-rest { background: var(--yui-soft); color: #B91C5C; }
 /* A番(8:15~17:15シフト)— 黄色 */
 .event.t-A {
   background: linear-gradient(135deg, #FCD34D 0%, #F59E0B 100%);
@@ -3019,6 +3023,7 @@ function eventTypeClass(summary) {
   if (isAShift(summary)) return 't-A';
   if (isMeeting(summary)) return 't-meeting';
   if (OUTING_LABELS.includes(summary)) return 't-outing';
+  if (REST_LABELS.includes(summary)) return 't-rest';
   return '';
 }
 function stickerId(summary, person) {
