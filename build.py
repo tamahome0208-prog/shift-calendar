@@ -9,7 +9,7 @@ Usage: python build.py "<xlsx>"
 import sys, os, json
 
 sys.path.insert(0, r"C:\Users\tamah\Desktop\shift_to_ics")
-from shift_to_ics import parse_shift, build_salary_events
+from shift_to_ics import parse_shift
 
 OUTPUT_DIR = r"C:\Users\tamah\Desktop\shift_calendar"
 NAME_MAP = {"安中": "こうき", "恩田": "ゆい"}
@@ -2393,6 +2393,13 @@ const REST_LABELS = ['休', '希望休', '有'];
 const MEETING_LABELS = ['会議', 'MTG', 'ミーティング'];
 const OUTING_LABELS = ['出店'];
 const A_SHIFT_LABELS = ['A', 'Ａ', 'A番'];
+// 室蘭店は「A(会議)」「B(会議)」のように 勤務記号+(注記) で書くため分解して判定する
+const baseLabel = s => String(s || '').replace(/[(（].*$/, '').trim();
+const noteLabel = s => (String(s || '').match(/[(（]([^)）]*)/) || [])[1] || '';
+const isAShift = s => A_SHIFT_LABELS.includes(baseLabel(s));
+const isMeeting = s => MEETING_LABELS.includes(s) || MEETING_LABELS.includes(noteLabel(s));
+// A番の時間は店舗で違う(こうき=室蘭店 / ゆい=登別店)
+const A_SHIFT_HOURS = { 'こうき': '9:15〜18:15', 'ゆい': '8:15〜17:15' };
 const LS_CUSTOM = 'shift-cal-custom-v2';
 const LS_FBCONFIG = 'shift-cal-fb-config';
 const LS_REMINDERS = 'shift-cal-reminder-state';
@@ -2677,9 +2684,10 @@ const Storage = {
       render();
     }
   },
-  async saveShifts(ym, events) {
-    const payload = { ym, events, updatedAt: Date.now() };
+  // persons: 今回書き換える人(ファイルに列があった人+手で直した人)。それ以外の人は保存先の最新を残す
+  async saveShifts(ym, events, persons) {
     if (!firestoreDb || !navigator.onLine) {
+      const payload = { ym, events: mergeShiftEvents((firestoreShifts[ym] || {}).events, events, persons), updatedAt: Date.now() };
       let local;
       try {
         local = JSON.parse(localStorage.getItem('sc_local_shifts') || '{}');
@@ -2694,18 +2702,22 @@ const Storage = {
       } catch(e) {
         queue = [];
       }
-      queue.push({ ym, events });
+      queue.push({ ym, events, persons });
       localStorage.setItem('sc_shift_queue', JSON.stringify(queue));
       firestoreShifts[ym] = payload;
       render();
       return { queued: true };
     }
-    await this._setDoc(this._doc(firestoreDb, 'shifts', ym), {
-      ym,
-      events,
-      updatedAt: new Date(),
-    });
+    await this._saveShiftsTx(ym, events, persons);
     return { queued: false };
+  },
+  async _saveShiftsTx(ym, events, persons) {
+    const ref = this._doc(firestoreDb, 'shifts', ym);
+    await this._runTx(firestoreDb, async (tx) => {
+      const snap = await tx.get(ref);
+      const base = snap.exists() ? snap.data().events : [];
+      tx.set(ref, { ym, events: mergeShiftEvents(base, events, persons), updatedAt: new Date() });
+    });
   },
   async sendPulse(kind = 'heart') {
     if (!firestoreDb) return;
@@ -2936,6 +2948,12 @@ const Storage = {
   },
 };
 
+// persons の分だけ events で差し替え、他の人は base を残す(persons 未指定 = 旧キュー互換で全員差し替え)
+function mergeShiftEvents(base, events, persons) {
+  const ps = persons || ['こうき', 'ゆい'];
+  return [...(base || []).filter(e => !ps.includes(e.person)), ...events.filter(e => ps.includes(e.person))];
+}
+
 let __shiftFlushing = false;
 async function flushShiftQueue() {
   if (__shiftFlushing) return;
@@ -2952,11 +2970,7 @@ async function flushShiftQueue() {
     const remaining = [];
     for (const item of queue) {
       try {
-        await Storage._setDoc(Storage._doc(firestoreDb, 'shifts', item.ym), {
-          ym: item.ym,
-          events: item.events,
-          updatedAt: new Date(),
-        });
+        await Storage._saveShiftsTx(item.ym, item.events, item.persons);
       } catch (e) {
         console.error('[ShiftQueue] flush failed:', e);
         remaining.push(item);
@@ -3018,14 +3032,14 @@ function getHistoryItems() {
   return { past, future, today };
 }
 function eventTypeClass(summary) {
-  if (A_SHIFT_LABELS.includes(summary)) return 't-A';
-  if (MEETING_LABELS.includes(summary)) return 't-meeting';
+  if (isAShift(summary)) return 't-A';
+  if (isMeeting(summary)) return 't-meeting';
   if (OUTING_LABELS.includes(summary)) return 't-outing';
   return '';
 }
 function stickerId(summary, person) {
-  if (A_SHIFT_LABELS.includes(summary)) return 'st-star';
-  if (MEETING_LABELS.includes(summary)) return 'st-bubble';
+  if (isAShift(summary)) return 'st-star';
+  if (isMeeting(summary)) return 'st-bubble';
   if (OUTING_LABELS.includes(summary)) return 'st-bag';
   if (REST_LABELS.includes(summary)) return 'st-leaf';
   if (person === '給料') return 'st-coin';
@@ -3097,9 +3111,9 @@ function renderHero() {
   } else if (todayBuiltin.some(e => e.person === '給料' && e.summary === '給料日')) {
     statusMsg = '今日は給料日';
     hot = true;
-  } else if (todayBuiltin.some(e => e.summary === 'A')) {
-    const aPersons = todayBuiltin.filter(e => e.summary === 'A').map(e => e.person);
-    statusMsg = `${aPersons.join('・')} は今日A番 (8:15〜17:15)`;
+  } else if (todayBuiltin.some(e => isAShift(e.summary))) {
+    const aPersons = todayBuiltin.filter(e => isAShift(e.summary)).map(e => e.person);
+    statusMsg = `${aPersons.map(p => A_SHIFT_HOURS[p] ? `${p}(${A_SHIFT_HOURS[p]})` : p).join('・')} は今日A番`;
   } else {
     // 記念日カウントダウン(30日以内)
     if (statusMsg === '今日もおつかれさま' && !hot) {
@@ -3352,7 +3366,7 @@ function renderYearView() {
       if (d > dim) { cell.classList.add('empty'); cells.appendChild(cell); continue; }
       const key = dateKey(yearViewYear, m, d);
       const builtin = getMergedEvents()[key] || [];
-      const hasA = builtin.some(e => A_SHIFT_LABELS.includes(e.summary));
+      const hasA = builtin.some(e => isAShift(e.summary));
       const hasPay = builtin.some(e => e.person === '給料');
       if (isBothOff(builtin)) cell.classList.add('full');
       else {
@@ -4179,6 +4193,7 @@ function commitCell(cell, newVal) {
   const person = cell.dataset.p;
   cell.textContent = newVal === '(通常勤務)' ? '通常勤務' : newVal;
   cell.classList.toggle('empty', newVal === '(通常勤務)');
+  if (!__pendingShift.persons.includes(person)) __pendingShift.persons.push(person);
   const ev = __pendingShift.events;
   const idx = ev.findIndex(e => e.d === d && e.person === person);
   if (newVal === '(通常勤務)') {
@@ -4198,7 +4213,7 @@ async function saveShiftsFromPreview() {
   btn.disabled = true;
   btn.textContent = '保存中...';
   try {
-    await Storage.saveShifts(ym, __pendingShift.events);
+    await Storage.saveShifts(ym, __pendingShift.events, __pendingShift.persons);
     document.getElementById('shift-upload-result').textContent = `✓ ${parseInt(m,10)}月のシフト ${__pendingShift.events.length}件を保存`;
     showUploadStep(3);
   } catch (err) {
@@ -5046,7 +5061,7 @@ const Report = {
           if (e.person === 'ゆい') yOff.add(key);
         }
         if (e.summary === '出店') outings.push(key);
-        if (e.summary === '会議') meetings.push(key);
+        if (isMeeting(e.summary)) meetings.push(key);
         if (e.person === '給料' && !salaryDay) salaryDay = parseInt(key.split('-')[2], 10);
       }
     }
@@ -5628,7 +5643,7 @@ HOLIDAYS_BY_YEAR = {
     2026: [
         "2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20",
         "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06",
-        "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-23",
+        "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-22", "2026-09-23",
         "2026-10-12", "2026-11-03", "2026-11-23",
     ],
     2027: [
@@ -5647,6 +5662,29 @@ HOLIDAYS_BY_YEAR = {
 
 
 import datetime as _dt
+
+SALARY_DAY = 20
+BONUS_DATES = [(7, 10), (12, 10)]
+
+
+def build_salary_events():
+    """HOLIDAYS_BY_YEAR の全年分の給料日・ボーナス日(土日祝は前営業日に前倒し)"""
+    holidays = {_dt.date.fromisoformat(s) for days in HOLIDAYS_BY_YEAR.values() for s in days}
+
+    def prev_business_day(d):
+        while d.weekday() >= 5 or d in holidays:
+            d -= _dt.timedelta(days=1)
+        return d
+
+    events = []
+    for year in sorted(HOLIDAYS_BY_YEAR):
+        for month in range(1, 13):
+            events.append((prev_business_day(_dt.date(year, month, SALARY_DAY)), "給料日", f"{month}月分給与"))
+        for m, day in BONUS_DATES:
+            events.append((prev_business_day(_dt.date(year, m, day)), "ボーナス", f"ボーナス({m}/{day})"))
+    if _dt.date.today().year + 1 not in HOLIDAYS_BY_YEAR:
+        print(f"  warn: HOLIDAYS_BY_YEAR に {_dt.date.today().year + 1} 年がありません。祝日を追加しないと来年の給料日が出ません")
+    return events
 
 # PDF由来のA番(8:15~17:15シフト)。Excelには未収録のためここで補う。
 # 同じファイル名のPDFがあれば extract_a_shifts_from_pdf() で自動上書き
@@ -5807,7 +5845,7 @@ def main():
         a_shifts = {}
         if os.path.exists(pdf_path):
             a_shifts = extract_a_shifts_from_pdf(pdf_path, year=year, month=shift_month)
-    salary_events = build_salary_events(year)
+    salary_events = build_salary_events()
     if not a_shifts:
         fallback = get_fallback_a_shifts(year, shift_month)
         if fallback:
